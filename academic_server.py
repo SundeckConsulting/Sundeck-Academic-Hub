@@ -118,8 +118,6 @@ if len(JWT_SECRET.encode("utf-8")) < 32:
     raise RuntimeError("JWT_SECRET must contain at least 32 bytes")
 
 ADMIN_PASSCODE = os.environ.get("ADMIN_PASSCODE", "")
-if APP_ENV == "production" and len(ADMIN_PASSCODE) < 16:
-    raise RuntimeError("ADMIN_PASSCODE must be configured with at least 16 characters")
 
 CORS_ALLOWED_ORIGINS = [origin.strip() for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if origin.strip()]
 if CORS_ALLOWED_ORIGINS:
