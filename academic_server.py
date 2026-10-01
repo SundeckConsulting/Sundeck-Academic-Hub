@@ -16,7 +16,7 @@ class MockRow:
 import os
 from werkzeug.utils import secure_filename
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'crm.db')
+DB_PATH = os.path.join(os.path.dirname(__file__), 'academic.db')
 
 
 import smtplib

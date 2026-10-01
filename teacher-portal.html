@@ -944,7 +944,7 @@
                 if (!token) return;
                 lastHeartbeatAt = Date.now();
                 try {
-                    const response = await fetch('http://127.0.0.1:5001/api/auth/session/activity', {method: 'POST', headers: {'Authorization': 'Bearer ' + token}});
+                    const response = await fetch('/api/auth/session/activity', {method: 'POST', headers: {'Authorization': 'Bearer ' + token}});
                     if (response.status === 401 && !expired) { expired = true; onExpire(); }
                 } catch {}
             };
@@ -1028,7 +1028,7 @@
                     if (!this.team || !this.team.id) return;
                     if (this.eventSource) this.eventSource.close();
                     this.realtimeStatus = 'connecting';
-                    this.eventSource = new EventSource(`http://127.0.0.1:5001/api/stream?token=${this.token}&client_id=${this.clientId}&team_id=${this.team.id}`);
+                    this.eventSource = new EventSource(`/api/stream?token=${this.token}&client_id=${this.clientId}&team_id=${this.team.id}`);
                     
                     this.eventSource.onopen = () => {
                         this.realtimeStatus = 'live';
@@ -1050,16 +1050,16 @@
                                 if (!this.team || !this.team.project_id) return;
                                 
                                 if (col === 'tasks') {
-                                    let res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/tasks`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                                    let res = await fetch(`/api/projects/${this.team.project_id}/tasks`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                                     if(res.ok) { let d = await res.json(); this.projectTasks = d.tasks.filter(t => t.activity_id); }
                                 } else if (col === 'dependencies') {
-                                    let res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/dependencies`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                                    let res = await fetch(`/api/projects/${this.team.project_id}/dependencies`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                                     if(res.ok) { let d = await res.json(); this.projectDependencies = d.dependencies; }
                                 } else if (col === 'work_packages') {
-                                    let res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/work_packages`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                                    let res = await fetch(`/api/projects/${this.team.project_id}/work_packages`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                                     if(res.ok) { let d = await res.json(); this.workPackages = d.work_packages; }
                                 } else if (col === 'activities') {
-                                    let res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/activities`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                                    let res = await fetch(`/api/projects/${this.team.project_id}/activities`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                                     if(res.ok) { let d = await res.json(); this.activities = d.activities; }
                                 } else if (col === 'files') {
                                     this.fetchFiles();
@@ -1151,7 +1151,7 @@ activeDropdown: null,
                     
                     this.studentFolderModalLoading = true;
                     try {
-                        const res = await fetch(`http://127.0.0.1:5001/api/students/resource-folders`, {
+                        const res = await fetch(`/api/students/resource-folders`, {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
                             body: JSON.stringify({name})
@@ -1193,7 +1193,7 @@ activeDropdown: null,
                 
                 async fetchTeamsAndProjects() {
                     if (this.isEmbed) {
-                        let res = await fetch('http://127.0.0.1:5001/api/admin/students/teams', {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                        let res = await fetch('/api/admin/students/teams', {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                         if(res.ok) { 
                             let d = await res.json(); 
                             this.allTeams = d;
@@ -1205,7 +1205,7 @@ activeDropdown: null,
                         }
                     } else {
                         // Teacher login
-                        let res = await fetch('http://127.0.0.1:5001/api/teacher/projects', {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                        let res = await fetch('/api/teacher/projects', {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                         if(res.ok) {
                             this.myProjects = await res.json();
                             this.viewState = 'projects';
@@ -1266,14 +1266,14 @@ activeDropdown: null,
                 async revokeSession() {
                     if (!this.token) return;
                     try {
-                        await fetch('http://127.0.0.1:5001/api/auth/session/logout', {method: 'POST', headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                        await fetch('/api/auth/session/logout', {method: 'POST', headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                     } catch {}
                 },
 
                 
                 async requestOtp() {
                     if (!this.email) return alert('Please enter your email.');
-                    const res = await fetch('http://127.0.0.1:5001/api/teacher/auth/request-otp', {
+                    const res = await fetch('/api/teacher/auth/request-otp', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({ email: this.email })
@@ -1294,7 +1294,7 @@ activeDropdown: null,
 
                 async verifyOtp() {
                     if (!this.otp) return alert('Please enter the OTP.');
-                    const res = await fetch('http://127.0.0.1:5001/api/teacher/auth/verify-otp', {
+                    const res = await fetch('/api/teacher/auth/verify-otp', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({ email: this.email, otp: this.otp })
@@ -1311,7 +1311,7 @@ activeDropdown: null,
 
 
                 async fetchPrivacyChoices() {
-                    const res = await fetch('http://127.0.0.1:5001/api/students/consent', {
+                    const res = await fetch('/api/students/consent', {
                         headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                     });
                     if (res.status === 401) return this.logout(true);
@@ -1340,7 +1340,7 @@ activeDropdown: null,
                     if (!this.privacyNoticeAcknowledged || this.consentSaving) return;
                     this.consentSaving = true;
                     try {
-                        const res = await fetch('http://127.0.0.1:5001/api/students/consent', {
+                        const res = await fetch('/api/students/consent', {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
                             body: JSON.stringify({
@@ -1372,7 +1372,7 @@ activeDropdown: null,
                 },
 
                 async fetchFiles() {
-                    const res = await fetch(`http://127.0.0.1:5001/api/students/files?team_id=${this.team.id}`, {
+                    const res = await fetch(`/api/students/files?team_id=${this.team.id}`, {
                         headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                     });
                     if (res.status === 401) return this.logout();
@@ -1380,7 +1380,7 @@ activeDropdown: null,
                 },
                 
                 async fetchDeliverableFolders() {
-                    const res = await fetch(`http://127.0.0.1:5001/api/students/file-folders?team_id=${this.team.id}`, {
+                    const res = await fetch(`/api/students/file-folders?team_id=${this.team.id}`, {
                         headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                     });
                     if (res.status === 401) return this.logout(true);
@@ -1408,7 +1408,7 @@ activeDropdown: null,
                     if (!this.newTaskName.trim()) return;
                     this.newTaskLoading = true;
                     try {
-                        const res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/tasks`, {
+                        const res = await fetch(`/api/projects/${this.team.project_id}/tasks`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -1493,7 +1493,7 @@ activeDropdown: null,
                     if (!this.mappingRequest || !this.mapToTaskId) return;
                     this.mapLoading = true;
                     try {
-                        const res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/dependencies/${this.mappingRequest.dependency.id}/map`, {
+                        const res = await fetch(`/api/projects/${this.team.project_id}/dependencies/${this.mappingRequest.dependency.id}/map`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId },
                             body: JSON.stringify({ from_task_id: this.mapToTaskId })
@@ -1514,7 +1514,7 @@ activeDropdown: null,
                 },
                 async fetchAllTeams() {
                     if (!this.team?.project_id) return;
-                    let res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/teams`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                    let res = await fetch(`/api/projects/${this.team.project_id}/teams`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                     if(res.ok) { let d = await res.json(); this.allTeams = d.teams; }
                 },
 
@@ -1527,7 +1527,7 @@ activeDropdown: null,
                     if (!this.depFromActId || !this.depWhatNeeded) return;
                     this.depLoading = true;
                     try {
-                        const res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/dependencies`, {
+                        const res = await fetch(`/api/projects/${this.team.project_id}/dependencies`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -1569,7 +1569,7 @@ filteredDeliverables() {
                     this.confirmModalCallback = async () => {
 
                     try {
-                        const res = await fetch(`http://127.0.0.1:5001/api/students/file-folders/${folderId}`, {
+                        const res = await fetch(`/api/students/file-folders/${folderId}`, {
                             method: 'DELETE',
                             headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                         });
@@ -1600,7 +1600,7 @@ filteredDeliverables() {
                 
                 async renameDeliverableFile(fileId, newName) {
                     try {
-                        const res = await fetch(`http://127.0.0.1:5001/api/students/files/${fileId}`, {
+                        const res = await fetch(`/api/students/files/${fileId}`, {
                             method: 'PUT',
                             headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
                             body: JSON.stringify({ name: newName })
@@ -1621,7 +1621,7 @@ filteredDeliverables() {
                     this.confirmModalActionText = 'Delete Work Package';
                     this.confirmModalCallback = async () => {
                         try {
-                            const res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/work_packages/${wp.id}`, {
+                            const res = await fetch(`/api/projects/${this.team.project_id}/work_packages/${wp.id}`, {
                                 method: 'DELETE',
                                 headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                             });
@@ -1639,7 +1639,7 @@ filteredDeliverables() {
                     this.confirmModalActionText = 'Delete Activity';
                     this.confirmModalCallback = async () => {
                         try {
-                            const res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/activities/${act.id}`, {
+                            const res = await fetch(`/api/projects/${this.team.project_id}/activities/${act.id}`, {
                                 method: 'DELETE',
                                 headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                             });
@@ -1664,7 +1664,7 @@ filteredDeliverables() {
                     this.confirmModalActionText = 'Delete Task';
                     this.confirmModalCallback = async () => {
                         try {
-                            const res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/tasks/${task.id}`, {
+                            const res = await fetch(`/api/projects/${this.team.project_id}/tasks/${task.id}`, {
                                 method: 'DELETE',
                                 headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                             });
@@ -1687,7 +1687,7 @@ filteredDeliverables() {
                     this.confirmModalCallback = async () => {
 
                     try {
-                        const res = await fetch(`http://127.0.0.1:5001/api/students/files/${fileId}`, {
+                        const res = await fetch(`/api/students/files/${fileId}`, {
                             method: 'DELETE',
                             headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                         });
@@ -1716,7 +1716,7 @@ filteredDeliverables() {
                 
                 async renameDeliverableFolder(folderId, newName) {
                     try {
-                        const res = await fetch(`http://127.0.0.1:5001/api/students/file-folders/${folderId}`, {
+                        const res = await fetch(`/api/students/file-folders/${folderId}`, {
                             method: 'PUT',
                             headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
                             body: JSON.stringify({ name: newName })
@@ -1739,7 +1739,7 @@ filteredDeliverables() {
                     if (!this.newDeliverableFolderName.trim()) return;
                     this.deliverableFolderModalLoading = true;
                     try {
-                        const res = await fetch(`http://127.0.0.1:5001/api/students/file-folders?team_id=${this.team.id}`, {
+                        const res = await fetch(`/api/students/file-folders?team_id=${this.team.id}`, {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
                             body: JSON.stringify({name: this.newDeliverableFolderName})
@@ -1826,8 +1826,8 @@ filteredDeliverables() {
                 
                 async submitTaskModal() {
                     const url = this.editingTask 
-                        ? `http://127.0.0.1:5001/api/projects/${this.team.project_id}/tasks/${this.editingTask.id}`
-                        : `http://127.0.0.1:5001/api/projects/${this.team.project_id}/tasks`;
+                        ? `/api/projects/${this.team.project_id}/tasks/${this.editingTask.id}`
+                        : `/api/projects/${this.team.project_id}/tasks`;
                         
                     const method = this.editingTask ? 'PUT' : 'POST';
                     const payload = { ...this.taskForm, team_id: this.team.id };
@@ -1849,13 +1849,13 @@ filteredDeliverables() {
 async fetchProjectData() {
                     if (!this.team.project_id) return;
                     await this.fetchAllTeams();
-                    let res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/tasks`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                    let res = await fetch(`/api/projects/${this.team.project_id}/tasks`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                     if(res.ok) { let d = await res.json(); this.projectTasks = d.tasks.filter(t => t.activity_id); }
-                    res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/dependencies`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                    res = await fetch(`/api/projects/${this.team.project_id}/dependencies`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                     if(res.ok) { let d = await res.json(); this.projectDependencies = d.dependencies; }
-                    res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/work_packages`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                    res = await fetch(`/api/projects/${this.team.project_id}/work_packages`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                     if(res.ok) { let d = await res.json(); this.workPackages = d.work_packages; }
-                    res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/activities`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                    res = await fetch(`/api/projects/${this.team.project_id}/activities`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                     if(res.ok) { let d = await res.json(); this.activities = d.activities; }
                 },
                 
@@ -1931,8 +1931,8 @@ async fetchProjectData() {
                     try {
                         const isEdit = !!this.wpForm.id;
                         const url = isEdit 
-                            ? `http://127.0.0.1:5001/api/projects/${this.team.project_id}/work_packages/${this.wpForm.id}`
-                            : `http://127.0.0.1:5001/api/projects/${this.team.project_id}/work_packages`;
+                            ? `/api/projects/${this.team.project_id}/work_packages/${this.wpForm.id}`
+                            : `/api/projects/${this.team.project_id}/work_packages`;
                         const res = await fetch(url, {
                             method: isEdit ? 'PUT' : 'POST',
                             headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
@@ -1964,8 +1964,8 @@ async fetchProjectData() {
                     try {
                         const isEdit = !!this.actForm.id;
                         const url = isEdit
-                            ? `http://127.0.0.1:5001/api/projects/${this.team.project_id}/activities/${this.actForm.id}`
-                            : `http://127.0.0.1:5001/api/projects/${this.team.project_id}/activities`;
+                            ? `/api/projects/${this.team.project_id}/activities/${this.actForm.id}`
+                            : `/api/projects/${this.team.project_id}/activities`;
                         const res = await fetch(url, {
                             method: isEdit ? 'PUT' : 'POST',
                             headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
@@ -2027,7 +2027,7 @@ async fetchProjectData() {
 
 
                 async fetchProjectResources() {
-                    const res = await fetch(`http://127.0.0.1:5001/api/students/resources?team_id=${this.team.id}`, {
+                    const res = await fetch(`/api/students/resources?team_id=${this.team.id}`, {
                         headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                     });
                     if (res.status === 401) return this.logout(true);
@@ -2037,7 +2037,7 @@ async fetchProjectData() {
                 },
 
                 async fetchProjectResourceFolders() {
-                    const res = await fetch(`http://127.0.0.1:5001/api/students/resource-folders?team_id=${this.team.id}`, {
+                    const res = await fetch(`/api/students/resource-folders?team_id=${this.team.id}`, {
                         headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                     });
                     if (res.status === 401) return this.logout(true);
@@ -2048,7 +2048,7 @@ async fetchProjectData() {
 
                 async downloadProjectResource(resource) {
                     try {
-                        const res = await fetch(`http://127.0.0.1:5001/api/students/resources/${encodeURIComponent(resource.id)}/download`, {
+                        const res = await fetch(`/api/students/resources/${encodeURIComponent(resource.id)}/download`, {
                             headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                         });
                         if (res.status === 401) return this.logout(true);
@@ -2128,7 +2128,7 @@ async fetchProjectData() {
                                 formData.append('folder_id', this.selectedDeliverableFolderId);
                         formData.append('team_id', this.team.id);
                             }
-                            const response = await fetch(`http://127.0.0.1:5001/api/students/files?team_id=${this.team.id}`, {
+                            const response = await fetch(`/api/students/files?team_id=${this.team.id}`, {
                                 method: 'POST',
                                 headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
                                 body: formData
@@ -2155,7 +2155,7 @@ async fetchProjectData() {
 
                 async downloadFile(file) {
                     try {
-                        const response = await fetch('http://127.0.0.1:5001/api/admin/students/files/' + encodeURIComponent(file.id) + '/download', {
+                        const response = await fetch('/api/admin/students/files/' + encodeURIComponent(file.id) + '/download', {
                             headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                         });
                         if (response.status === 401) return this.logout(true);
