@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sundeck Academic Hub | Legal Information</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/i18n.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen text-slate-800">
+    
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <a href="/" class="flex items-center gap-3">
+                    <img src="/assets/logo.png" alt="Sundeck Consulting" class="h-8" onerror="this.src='https://ui-avatars.com/api/?name=Sundeck&background=FF7A00&color=fff'">
+                    <span class="text-sm font-semibold text-slate-500 tracking-widest uppercase border-l border-slate-300 pl-3">Academic Hub</span>
+                </a>
+                <div id="lang-toggle-container"></div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow max-w-4xl mx-auto py-12 px-6 w-full">
+        <div class="bg-white border border-slate-200 rounded-2xl p-10 shadow-sm">
+            <h1 class="text-3xl font-bold text-slate-900 mb-6 border-b pb-4">Legal & Compliance Hub</h1>
+            <div class="mb-8 border border-amber-300 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950">
+                <strong>Draft notice: not ready for production.</strong> The controller identity and contact, the university/Sundeck roles, legal bases, retention periods, and processor details must be confirmed and added by the responsible privacy adviser before this notice is relied on.
+            </div>
+            
+            <section class="mb-8">
+                <h2 class="text-xl font-semibold text-slate-800 mb-3">Student Privacy Information</h2>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    The Academic Hub processes account details such as name and university email, login and session information, and files and metadata submitted for course projects. These data are used to provide the student portal, administer course projects, review deliverables, and protect the service. The controller and lawful basis for each purpose must be confirmed with the participating institution before production use.
+                </p>
+                <p class="text-slate-600 leading-relaxed">
+                    Currently, uploaded files are written to the Academic Hub application's local server filesystem, while file metadata is stored in the Academic Hub SQLite database. This deployment does not upload student files to a Contabo storage bucket. The hosting location, authorized recipients, any processors, and applicable retention periods must be confirmed and documented before launch.
+                </p>
+                <p class="text-slate-600 leading-relaxed mt-4">
+                    Before publication, complete this notice with the controller's legal name and contact details, the data protection contact, purposes and lawful bases, recipients, retention periods, international transfer details if applicable, and how students can exercise their rights or complain to a supervisory authority.
+                </p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-xl font-semibold text-slate-800 mb-3">Course and Optional Marketing Use</h2>
+                <p class="text-slate-600 leading-relaxed">
+                    Course administration and review are separate from optional marketing use. Students may decline marketing permission without affecting course access or assessment. The current draft marketing permission is limited to student-created work after personal and identifying details have been removed; it does not permit marketing use of a student's name, image, voice, email, or other identifying personal data. Third-party material and other contributors' work are not covered. Uploading work alone does not transfer its copyright to Sundeck Consulting. Have the final scope and wording reviewed by the responsible privacy and legal advisers before production use.
+                </p>
+            </section>
+            
+            <a href="/" class="inline-block mt-4 bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2 rounded-lg font-medium transition-colors">Return to Hub</a>
+        </div>
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center text-sm text-slate-500">
+            &copy; 2026 Sundeck Consulting. All rights reserved.
+        </div>
+    </footer>
+</body>
+</html>

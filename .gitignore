@@ -1,0 +1,33 @@
+# Local secrets and environment configuration
+.env
+.env.*
+!.env.example
+.env.local
+.env.production
+.env.development
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.csr
+*.ppk
+
+# Local Python environment and generated files
+.venv/
+__pycache__/
+*.py[cod]
+.vscode/
+
+# Local databases, uploads, logs, and generated extraction output
+academic.db*
+storage/
+*.log
+extracted_strings.json
+
+# Development scratch scripts and backups
+scratch/
+*.bak
+*.bak.*
+*_backup.*
+*-backup.*

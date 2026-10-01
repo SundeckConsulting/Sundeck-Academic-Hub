@@ -1,0 +1,2670 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Sundeck Academic Hub | Teacher Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="/i18n.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #F7F8FA; }
+        .enterprise-card {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            box-shadow: 0 8px 24px -18px rgba(15, 23, 42, 0.28);
+            border-radius: 18px;
+        }
+        .btn-primary {
+            background: #F97316;
+            color: white;
+            transition: background-color 0.15s ease;
+        }
+        .btn-primary:hover {
+            background: #EA580C;
+        }
+        [x-cloak] { display: none !important; }
+        .file-drop-zone { border: 1px dashed #CBD5E1; }
+        .file-drop-zone.dragging { border-color: #F97316; background: #FFF7ED; }
+    </style>
+</head>
+<body x-data="teacherApp()" class="min-h-screen text-slate-800 antialiased">
+
+        <nav x-show="!isEmbed" class="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <a href="/" class="flex items-center gap-3">
+                    <img :src="student?.org_logo || '/assets/logo.png'" alt="Organization logo" class="h-9 max-w-[140px] object-contain" onerror="this.src='https://ui-avatars.com/api/?name=Academic&background=FF7A00&color=fff'">
+                    <span class="text-sm font-semibold text-slate-500 tracking-widest uppercase border-l border-slate-300 pl-3">Teacher Portal</span>
+                </a>
+                <div class="flex items-center gap-4">
+                    <div id="lang-toggle-container"></div>
+                    <div x-show="token" style="display: none;" class="flex items-center gap-4">
+                        <span class="font-medium text-amber-600 bg-amber-50 px-3 py-1 rounded-full text-xs uppercase tracking-widest border border-amber-200">Professor Access</span>
+                        <button @click="logout" class="text-sm text-slate-500 hover:text-amber-600">Secure Sign Out</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="mx-auto flex min-h-[calc(100vh-72px)] w-full max-w-7xl flex-grow flex-col px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+        <section x-show="!token" class="m-auto w-full max-w-md py-8">
+            <div class="mb-7 text-center">
+                <div class="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-orange-50 text-orange-600">
+                    <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M12 3 4.5 7v5c0 4.4 3.2 7.7 7.5 9 4.3-1.3 7.5-4.6 7.5-9V7L12 3Z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="m9 12 2 2 4-4"/></svg>
+                </div>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-orange-700">Teacher Portal</p>
+                <h1 class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Welcome to your workspace</h1>
+                <p class="mt-2 text-sm text-slate-500">Secure access for academic collaboration.</p>
+            </div>
+
+            <div class="enterprise-card p-6 sm:p-8">
+                <p x-show="sessionExpiredMessage" x-cloak class="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                    <span class="block font-semibold">Your session has expired.</span>
+                    <span class="mt-1 block">Please sign in again to continue.</span>
+                    <button @click="startOverLogin" class="mt-3 font-semibold text-amber-900 underline underline-offset-2">Sign in again</button>
+                </p>
+
+                <div x-show="!otpSent">
+                    <h2 class="text-lg font-semibold text-slate-900">Student sign in</h2>
+                    <label for="student-email" class="mt-5 block text-sm font-medium text-slate-700">University email</label>
+                    <input id="student-email" type="email" x-model="email" autocomplete="email" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100" placeholder="professor@university.edu">
+                    <button @click="requestOtp" class="btn-primary mt-5 w-full rounded-xl px-4 py-3 text-sm font-semibold">Send secure code</button>
+                </div>
+
+                <div x-show="otpSent" x-cloak>
+                    <h2 class="text-lg font-semibold text-slate-900">Check your email</h2>
+                    <p class="mt-2 text-sm leading-6 text-slate-500">We sent a secure code to <span class="font-medium text-slate-700" x-text="email"></span>.</p>
+                    <label for="student-otp" class="mt-5 block text-sm font-medium text-slate-700">Verification code</label>
+                    <input id="student-otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" x-model="otp" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-center font-mono text-2xl tracking-[0.45em] outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100" placeholder="_ _ _ _ _ _">
+                    <button @click="verifyOtp" class="btn-primary mt-5 w-full rounded-xl px-4 py-3 text-sm font-semibold">Authenticate</button>
+                    <button @click="startOverLogin" class="mt-4 w-full text-center text-sm font-medium text-slate-500 transition hover:text-slate-900">Use another email</button>
+                    <p class="mt-5 text-center text-xs text-slate-400">Code expires in 10 minutes and can only be used once.</p>
+                </div>
+            </div>
+        </section>
+
+        <section x-show="token && (consentRequired || consentScreenOpen)" x-cloak :class="consentRequired ? 'm-auto w-full max-w-2xl py-6' : 'fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4'">
+            <div class="enterprise-card w-full p-6 sm:p-8" :class="consentRequired ? '' : 'max-h-[92vh] max-w-2xl overflow-y-auto'">
+                <div class="border-b border-slate-200 pb-5">
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-orange-700">Before you continue</p>
+                    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Privacy and permissions</h1>
+                    <p class="mt-2 text-sm leading-6 text-slate-500">Review the privacy notice and Sundeck may use your project work for marketing.</p>
+                </div>
+
+                <div class="mt-5 rounded-xl bg-slate-50 p-4 sm:p-5">
+                    <div class="flex items-center gap-2">
+                        <span class="rounded-full bg-orange-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-orange-800">Required</span>
+                        <h2 class="text-sm font-semibold text-slate-900">Course privacy notice</h2>
+                    </div>
+                    <p class="mt-3 text-sm leading-6 text-slate-600">We use your account details and submissions to run the course and review your work. <a href="/legal" target="_blank" rel="noopener" class="font-semibold text-orange-700 underline underline-offset-2">Read the full privacy notice</a>.</p>
+                    <label class="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white p-3.5 text-sm text-slate-700">
+                        <input type="checkbox" x-model="privacyNoticeAcknowledged" class="mt-0.5 h-4 w-4 accent-orange-600">
+                        <span>I have read the privacy notice.</span>
+                    </label>
+                </div>
+
+                <fieldset class="mt-5">
+                    <div class="flex items-center gap-2">
+                        <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">Optional</span>
+                        <legend class="text-sm font-semibold text-slate-900">Marketing permission</legend>
+                    </div>
+                    <p class="mt-3 text-sm leading-6 text-slate-600">Covers your original project work only. Identifying details must be removed before use; other people's work or contributions are not included.</p>
+                    <label class="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4 text-sm leading-6 text-slate-700 transition hover:border-orange-300">
+                        <input type="checkbox" x-model="marketingUseConsent" class="mt-1 h-4 w-4 shrink-0 accent-orange-600">
+                        <span>I allow Sundeck to reproduce, adapt, and publish my original project work on its website, social media, and marketing materials after identifying details are removed. This does not allow use of my name, image, voice, or email.</span>
+                    </label>
+                </fieldset>
+
+                <label class="mt-4 flex cursor-pointer items-start gap-3 border-t border-slate-200 pt-4 text-sm font-medium text-slate-700">
+                    <input type="checkbox" :checked="privacyNoticeAcknowledged && marketingUseConsent" @change="setAllConsentChoices($event.target.checked)" class="mt-0.5 h-4 w-4 accent-orange-600">
+                    <span>Select all <span class="mt-0.5 block text-xs font-normal text-slate-500">Selects both choices. You can also set them separately.</span></span>
+                </label>
+                <p class="mt-3 text-xs text-slate-500">Marketing permission is optional and can be withdrawn later.</p>
+
+                <div class="mt-6 flex flex-col-reverse justify-end gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center">
+                    <button x-show="!consentRequired" @click="consentScreenOpen = false" class="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">Cancel</button>
+                    <button @click="savePrivacyChoices" :disabled="!privacyNoticeAcknowledged || consentSaving" class="btn-primary rounded-xl px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50" x-text="consentSaving ? 'Saving...' : 'Continue to workspace'"></button>
+                </div>
+            </div>
+        </section>
+
+        <section x-show="token && !consentRequired && !marketingChoiceRequired" x-cloak class="w-full space-y-7">
+            <div class="flex flex-col gap-5 border-b border-slate-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-orange-700">Teacher Portal</p>
+                    <h1 class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Team Workspace</h1>
+                    <p class="mt-2 text-slate-500" x-text="team.name || 'Your project workspace'"></p>
+                </div>
+                <div class="flex gap-3 self-start sm:self-auto">
+                    <button x-show="viewState === 'dashboard' && !isEmbed" @click="viewState = 'projects'; team = {};" class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                        Back to Projects
+                    </button>
+                    <button @click="openPrivacyChoices" class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">Privacy choices</button>
+                </div>
+            </div>
+
+            
+            <div class="w-full">
+            
+                <!-- PROJECTS VIEW -->
+                <div x-show="viewState === 'projects' && !isEmbed" class="space-y-6 animate-fade-in" x-cloak>
+                    <h2 class="text-xl font-bold text-slate-900">My Assigned Projects</h2>
+                    <div x-show="myProjects.length === 0" class="text-slate-500 bg-slate-50 p-6 rounded-xl border border-slate-200">
+                        You have not been assigned to any projects yet.
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <template x-for="p in myProjects" :key="p.id">
+                            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer" @click="selectProject(p)">
+                                <h3 class="font-bold text-slate-900 text-lg" x-text="p.name"></h3>
+                                <p class="text-slate-500 text-sm mt-1 mb-4" x-text="p.teams.length + ' Teams'"></p>
+                                
+                                <div x-show="selectedProjectId === p.id" class="mt-4 pt-4 border-t border-slate-100 space-y-2">
+                                    <h4 class="text-xs font-semibold uppercase text-slate-400 mb-2">Select a Team Workspace</h4>
+                                    <template x-for="t in p.teams" :key="t.id">
+                                        <button @click.stop="selectTeam(t)" class="w-full text-left px-4 py-3 bg-slate-50 hover:bg-orange-50 hover:text-orange-700 border border-slate-200 hover:border-orange-200 rounded-lg text-sm font-medium transition-colors flex justify-between items-center">
+                                            <span x-text="t.name"></span>
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                        </button>
+                                    </template>
+                                    <div x-show="p.teams.length === 0" class="text-xs text-slate-400 italic">No teams in this project.</div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- DASHBOARD VIEW -->
+                <div x-show="viewState === 'dashboard' || isEmbed" class="min-w-0 space-y-6" x-cloak>
+
+<!-- Project Dashboard View -->
+<div x-show="team.project_id && !showResourcesView" class="space-y-6 animate-fade-in" x-cloak>
+    <div class="flex justify-between items-end border-b border-slate-200 pb-4">
+        <div>
+            <h1 class="text-xl font-bold text-slate-900" x-text="project.name || 'KulTour Kerala 2028'"></h1>
+            <p class="text-sm font-medium text-slate-500 mt-1" x-text="team.name"></p>
+        </div>
+        <div>
+            <button @click="showResourcesView = true" class="btn-primary rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2">
+                Project Files
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN WORKSPACE: 3-COLUMN GRID -->
+    <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[20%_53%_27%] xl:grid-cols-[20%_53%_27%]">
+        <!-- Column 1: Your Team -->
+                <div class="space-y-6 min-w-0">
+            <aside class="enterprise-card p-5 sm:p-6">
+                    <div class="flex items-start justify-between gap-3 border-b border-slate-200 pb-4">
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Your team</p>
+                            <h2 class="mt-1 text-lg font-semibold text-slate-900" x-text="team.name || 'Team members'"></h2>
+                        </div>
+                        <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600" x-text="(team.members || []).length + ((team.members || []).length === 1 ? ' member' : ' members')"></span>
+                    </div>
+                    <ul class="divide-y divide-slate-100">
+                        <template x-for="member in team.members" :key="member.id">
+                            <li class="flex items-center justify-between gap-2 py-2">
+                                <div class="flex min-w-0 items-center gap-3">
+                                    <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-semibold" :class="(member || {}).is_current_student ? 'bg-orange-100 text-orange-800' : 'bg-slate-100 text-slate-600'" x-text="member.name ? member.name.trim().charAt(0).toUpperCase() : 'M'"></span>
+                                    <span class="truncate text-sm font-medium" :class="(member || {}).is_current_student ? 'text-slate-900' : 'text-slate-700'" x-text="member.name"></span>
+                                </div>
+                                <span x-show="(member || {}).is_current_student" class="text-xs font-semibold text-orange-700">You</span>
+                            </li>
+                        </template>
+                        <li x-show="(team.members || []).length === 0" class="py-5 text-sm text-slate-500">No team members are listed yet.</li>
+                    </ul>
+                </aside>
+            <section class="enterprise-card min-w-0 overflow-hidden">
+                    <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 p-5 sm:p-6">
+                        <div class="min-w-[150px] flex-1">
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Project files</p>
+                            <div class="flex items-center gap-2">
+                                <template x-if="selectedDeliverableFolderId">
+                                    <button @click="selectedDeliverableFolderId = ''" class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition-colors shrink-0">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                                    </button>
+                                </template>
+                                <h2 class="mt-1 text-lg font-semibold text-slate-900 truncate">
+                                    <template x-if="!selectedDeliverableFolderId">
+                                        <span>My Deliverables</span>
+                                    </template>
+                                    <template x-if="selectedDeliverableFolderId">
+                                        <div class="flex items-center gap-2 text-base">
+                                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                                            <span class="font-bold text-slate-900 truncate" x-text="(deliverableFolders.find(f => f.id === selectedDeliverableFolderId) || {}).name"></span>
+                                        </div>
+                                    </template>
+                                </h2>
+                            </div>
+                            <p class="mt-1 text-xs text-slate-500">Files submitted by your team.</p>
+                        </div>
+                        
+                        <div class="flex flex-wrap gap-2 justify-end">
+                            <button @click="openUploadModal" class="btn-primary flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold shrink-0">
+                                <svg aria-hidden="true" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 16V4m0 0L7 9m5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
+                                Upload file
+                            </button>
+                            <button type="button" @click="promptDeliverableFolder()" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition-colors shrink-0">
+                                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
+                                New Folder
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Grid View: Folders and Files -->
+                    <div class="grid gap-4 pb-4 px-5 sm:px-6" style="grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));">
+                        
+                        <!-- Folders (Only show when at Deliverables Root) -->
+                        <template x-for="folder in deliverableFolders" :key="folder.id">
+                            <div x-show="!selectedDeliverableFolderId" class="group relative flex flex-col p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-md transition-all cursor-pointer">
+                                
+                                <div class="absolute top-2 right-2">
+                                    <!-- Context Menu Trigger -->
+                                    <button @click.stop="activeDropdown = activeDropdown === 'delfolder-'+folder.id ? null : 'delfolder-'+folder.id" class="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
+                                    </button>
+                                    
+                                    <!-- Context Menu Dropdown -->
+                                    <div x-show="activeDropdown === 'delfolder-'+folder.id" @click.away="activeDropdown = null" x-cloak class="absolute top-8 right-0 w-32 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden z-10 text-sm">
+                                        <button @click.stop="promptRenameDeliverableFolder(folder); activeDropdown = null" class="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700">Rename</button>
+                                        <button @click.stop="deleteDeliverableFolder(folder.id); activeDropdown = null" class="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 border-t border-slate-100">Delete</button>
+                                    </div>
+                                </div>
+                                
+                                <div @click="selectedDeliverableFolderId = folder.id" class="flex-1 flex flex-col">
+                                    <svg class="w-8 h-8 text-slate-400 mb-3" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" /></svg>
+                                    <h4 class="font-medium text-slate-900 truncate" x-text="folder.name"></h4>
+                                    <span class="text-[11px] text-slate-400 mt-1" x-text="new Date(folder.created_at).toLocaleDateString()"></span>
+                                </div>
+                            </div>
+                        </template>
+
+                    </div>
+
+                    <div x-show="filteredDeliverables().length > 0" class="p-5 sm:p-6 bg-slate-50 space-y-4">
+                        <template x-for="file in filteredDeliverables()" :key="file.id">
+                            <article class="flex flex-col gap-4 p-4 rounded-xl border border-slate-200 bg-white shadow-sm">
+                                <div class="flex items-start gap-3">
+                                    <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-orange-700">
+                                        <svg aria-hidden="true" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M7 3.75h6l5 5v11.5H7a2 2 0 01-2-2v-12.5a2 2 0 012-2z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M13 4v5h5M8 14h8M8 17h6"/></svg>
+                                    </span>
+                                    <div class="min-w-0 flex-1">
+                                        <h3 class="truncate text-sm font-semibold text-slate-800" :title="file.file_name" x-text="file.file_name"></h3>
+                                        <p class="mt-1 text-xs text-slate-500" x-text="formatUploadDate(file.uploaded_at)"></p>
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                                    <button @click="downloadFile(file)" class="flex items-center justify-center flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+                                        <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                        Download
+                                    </button>
+                                    <button @click="deleteDeliverableFile(file.id)" class="flex items-center justify-center flex-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100">
+                                        <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        Delete
+                                    </button>
+                                </div>
+                            </article>
+                        </template>
+                    </div>
+
+                    <div x-show="(!selectedDeliverableFolderId && deliverableFolders.length === 0 && filteredDeliverables().length === 0) || (selectedDeliverableFolderId && filteredDeliverables().length === 0)" class="px-6 py-12 text-center sm:py-16">
+                        <div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-slate-100 text-slate-500">
+                            <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M12 16V4m0 0L7 9m5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
+                        </div>
+                        <h3 class="mt-4 text-base font-semibold text-slate-900" x-text="selectedDeliverableFolderId ? 'Folder is empty' : 'No deliverables yet'"></h3>
+                        <p class="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500" x-text="selectedDeliverableFolderId ? 'No files have been uploaded to this folder.' : 'Your team hasn\'t uploaded any project files or folders yet.'"></p>
+                        <button @click="openUploadModal" class="btn-primary mt-5 rounded-xl px-4 py-2.5 text-sm font-semibold">Upload file</button>
+                    </div>
+                </section>
+        </div>
+        <!-- Column 2: My Tasks -->
+        <div class="space-y-6 min-w-0">
+            
+            <div>
+                <h2 class="text-xl font-bold text-slate-900 uppercase tracking-widest text-[11px] mb-1">My Tasks</h2>
+                <h1 class="text-2xl font-bold text-slate-900" x-text="project.name || 'Project Workspace'"></h1>
+                <p class="text-sm font-semibold text-slate-600 mt-1" x-text="team.name || 'Your Team'"></p>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm min-w-0 flex flex-col justify-center">
+                    <div class="text-xl font-bold text-slate-900 truncate" x-text="`${getOverallProgress()}%`">0%</div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-1 truncate">Overall Progress</div>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm min-w-0 flex flex-col justify-center">
+                    <div class="text-xl font-bold text-slate-900 truncate" x-text="workPackages.length">0</div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-1 truncate">Work Packages</div>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm min-w-0 flex flex-col justify-center">
+                    <div class="text-xl font-bold text-slate-900 truncate" x-text="activities.length">0</div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-1 truncate">Activities</div>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm min-w-0 flex flex-col justify-center">
+                    <div class="text-xl font-bold text-slate-900 truncate" x-text="projectTasks.length">0</div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-1 truncate">Total Tasks</div>
+                </div>
+            </div>
+
+            <!-- Action Bar -->
+            <div class="flex justify-end mb-2">
+                <button @click="openNewWpModal()" class="btn-primary rounded-xl px-4 py-2 text-sm font-semibold flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    New Work Package
+                </button>
+            </div>
+
+            <!-- Work Packages Curriculum View -->
+            <div class="space-y-4">
+                <template x-for="wp in workPackages" :key="wp.id">
+                    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-200">
+                        <!-- WP Header -->
+                        <div class="px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors flex items-center justify-between group" @click="toggleWp(wp.id)">
+                            <div class="flex items-center gap-3">
+                                <button class="text-slate-400 hover:text-slate-600 transition-colors">
+                                    <svg class="w-5 h-5 transition-transform duration-200" :class="expandedWorkPackages[wp.id] ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                </button>
+                                <div>
+                                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5" x-text="wp.team_id === team.id ? 'Work Package' : getTeamName(wp.team_id)"></div>
+                                    <h3 class="font-bold text-slate-900 text-base" x-text="wp.name"></h3>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-6 text-sm text-slate-500">
+                                <div class="hidden sm:block text-right">
+                                    <div class="font-medium text-slate-700" x-text="`${getActivitiesForWP(wp.id).length} Activities`"></div>
+                                    <div class="text-xs" x-text="getWpProgress(wp.id).text"></div>
+                                </div>
+                                <div class="w-16 h-2 bg-slate-100 rounded-full overflow-hidden flex-shrink-0" title="Progress">
+                                    <div class="h-full bg-orange-500 rounded-full transition-all duration-500" :style="`width: ${getWpProgress(wp.id).percent}%`"></div>
+                                </div>
+                                <div class="opacity-0 group-hover:opacity-100 flex items-center shrink-0 transition-opacity" x-show="wp.team_id === team.id">
+                                    <button @click.stop="openEditWpModal(wp)" class="p-1.5 text-slate-400 hover:text-orange-600 rounded-lg hover:bg-orange-50 transition-colors" title="Edit Work Package">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                    </button>
+                                    <button @click.stop="promptDeleteWp(wp)" class="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete Work Package">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- WP Content (Expanded) -->
+                        <div x-show="expandedWorkPackages[wp.id]" x-collapse x-cloak>
+                            <div class="px-5 pb-5 pt-1 border-t border-slate-100/50 bg-slate-50/50">
+                                <p class="text-sm text-slate-600 mb-5 mt-2 pl-8" x-show="wp.description" x-text="wp.description"></p>
+                                
+                                <div class="space-y-3 pl-3 sm:pl-8 border-l border-slate-200 ml-4 sm:ml-5 pt-1">
+                                    <template x-for="act in getActivitiesForWP(wp.id)" :key="act.id">
+                                        <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden relative group">
+                                            <!-- Activity Header -->
+                                            <div class="px-4 py-3 transition-colors flex items-center justify-between relative z-10" :class="wp.team_id === team.id ? 'cursor-pointer hover:bg-slate-50' : ''" @click="wp.team_id === team.id && toggleAct(act.id)">
+                                                <div class="flex items-center gap-3">
+                                                    <button class="text-slate-400 hover:text-slate-600 transition-colors" x-show="wp.team_id === team.id">
+                                                        <svg class="w-4 h-4 transition-transform duration-200" :class="expandedActivities[act.id] ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                                    </button>
+                                                    <div>
+                                                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5" x-text="'Activity'"></div>
+                                                        <h4 class="font-bold text-slate-800 text-sm" x-text="act.name"></h4>
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-center gap-4 text-xs text-slate-500">
+                                                    <div class="text-right">
+                                                        <span class="font-medium text-slate-600" x-text="`${getActProgress(act.id).percent}%`"></span>
+                                                        <span class="hidden sm:inline-block mx-1">·</span>
+                                                        <span class="hidden sm:inline-block" x-text="`${getTasksForActivity(act.id).length} Tasks`"></span>
+                                                    </div>
+                                                    <div class="w-10 h-1.5 bg-slate-100 rounded-full overflow-hidden shrink-0 hidden sm:block">
+                                                        <div class="h-full bg-orange-400 rounded-full transition-all duration-300" :style="`width: ${getActProgress(act.id).percent}%`"></div>
+                                                    </div>
+                                                    <div class="opacity-0 group-hover:opacity-100 flex items-center shrink-0 transition-opacity" x-show="wp.team_id === team.id">
+                                                        <button @click.stop="openEditActModal(act)" class="p-1.5 text-slate-400 hover:text-orange-600 rounded-lg hover:bg-orange-50 transition-colors" title="Edit Activity">
+                                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                        </button>
+                                                        <button @click.stop="promptDeleteAct(act)" class="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete Activity">
+                                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Tasks List -->
+                                            <div x-show="wp.team_id === team.id && expandedActivities[act.id]" x-collapse x-cloak>
+                                                <div class="border-t border-slate-100 bg-white">
+                                                    <p class="text-xs text-slate-500 px-11 py-2" x-show="act.description" x-text="act.description"></p>
+                                                    <template x-for="task in getTasksForActivity(act.id)" :key="task.id">
+                                                        <div class="px-4 py-2 border-t border-slate-50 last:border-b-0 hover:bg-orange-50/30 transition-colors group/task cursor-pointer" @click="openViewTaskModal(task)">
+                                                            <div class="flex items-start justify-between gap-4">
+                                                                <div class="flex items-start gap-3 min-w-0 py-1 pl-4">
+                                                                    <!-- Completion Icon -->
+                                                                    <div class="mt-0.5 shrink-0">
+                                                                        <template x-if="['Completed', 'Approved'].includes(task.status)">
+                                                                            <svg class="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                                        </template>
+                                                                        <template x-if="task.status === 'Blocked'">
+                                                                            <svg class="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                                                        </template>
+                                                                        <template x-if="task.status === 'In Progress' || task.status === 'Under Review' || task.status === 'Revision Required'">
+                                                                            <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                                        </template>
+                                                                        <template x-if="!['Completed', 'Approved', 'Blocked', 'In Progress', 'Under Review', 'Revision Required'].includes(task.status)">
+                                                                            <div class="w-3 h-3 rounded-full border-2 border-slate-300 ml-0.5 mt-0.5"></div>
+                                                                        </template>
+                                                                    </div>
+                                                                    
+                                                                    <div class="flex flex-col gap-0.5 min-w-0">
+                                                                        <div class="font-medium text-sm text-slate-800 truncate" x-text="task.name"></div>
+                                                                        <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 mt-1">
+                                                                            <span x-text="task.start_date && task.end_date ? `${formatDate(task.start_date)} → ${formatDate(task.end_date)}` : 'Dates TBD'"></span>
+                                                                            <span :class="getStatusColor(task.status)" class="font-semibold" x-text="task.status || 'Not Started'"></span>
+                                                                            <template x-if="task.description">
+                                                                                <span class="truncate max-w-[200px] text-slate-400" title="Deliverable" x-text="`Deliverable: ${task.description}`"></span>
+                                                                            </template>
+                                                                        </div>
+                                                                        
+                                                                        <!-- Dependency Indicators -->
+                                                                        <template x-if="getDownstreamTasks(task.id).length > 0">
+                                                                            <div class="mt-1.5 text-[11px] font-medium text-orange-600 flex items-center gap-1.5 border-l-2 border-orange-200 pl-1.5">
+                                                                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                                                                                <span x-text="`${getDownstreamTasks(task.id).length} team(s) depend on this`"></span>
+                                                                            </div>
+                                                                        </template>
+                                                                        <template x-if="getIncomingDependencies().some(d => d.toTask?.id === task.id)">
+                                                                            <div class="mt-1.5 text-[11px] font-medium text-blue-600 flex items-center gap-1.5 border-l-2 border-blue-200 pl-1.5">
+                                                                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/></svg>
+                                                                                <span x-text="`Waiting for ${getIncomingDependencies().filter(d => d.toTask?.id === task.id).map(d=>d.fromTeam?d.fromTeam.name:'Unknown').join(', ')}`"></span>
+                                                                            </div>
+                                                                        </template>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <div class="opacity-0 group-hover/task:opacity-100 transition-opacity flex items-center gap-2 pt-1">
+                                                                    <button @click.stop="openEditTaskModal(task)" class="p-1.5 text-slate-400 hover:text-orange-600 rounded-lg hover:bg-orange-100 transition-colors" title="Edit Task">
+                                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                                    </button>
+                                                                    <button @click.stop="promptDeleteTask(task)" class="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete Task">
+                                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                    <div x-show="getTasksForActivity(act.id).length === 0" class="px-4 py-4 text-center text-[11px] font-medium text-slate-400 uppercase tracking-widest">
+                                                        No tasks defined
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="px-4 py-2 border-t border-slate-100 bg-slate-50/50">
+                                                    <button @click="openNewTaskModalInActivity(act.id)" class="text-xs font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-orange-100 transition-colors ml-4">
+                                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                                        Add Task
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    
+                                    <div x-show="getActivitiesForWP(wp.id).length === 0" class="py-4 text-[11px] font-medium text-slate-400 uppercase tracking-widest text-center border-2 border-dashed border-slate-200 rounded-lg bg-white/50">
+                                        No activities defined
+                                    </div>
+                                    
+                                    <div class="pt-2">
+                                        <button x-show="wp.team_id === team?.id" @click="openNewActModal(wp.id)" class="text-sm font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 px-3 py-2 rounded-lg border-2 border-dashed border-slate-300 hover:border-slate-400 hover:bg-white transition-colors">
+                                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                            Add Activity
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </template>
+                
+                <div x-show="workPackages.length === 0" class="bg-white rounded-xl border border-slate-200 p-12 text-center shadow-sm">
+                    <div class="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900">Project Not Started</h3>
+                    <p class="text-sm text-slate-500 mt-2 max-w-md mx-auto">Create your first Work Package to begin structuring your team's project work into manageable activities and tasks.</p>
+                    <button @click="openNewWpModal()" class="btn-primary mt-6 rounded-xl px-5 py-2.5 text-sm font-semibold flex items-center justify-center gap-2 mx-auto">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        New Work Package
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+<!-- Column 2: Dependencies -->
+        <div class="space-y-6">
+            
+            <div>
+                <h2 class="text-xl font-bold text-slate-900">I Need From Other Teams</h2>
+                <p class="text-sm text-slate-500 mt-1">Work required from other teams to continue.</p>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-white rounded-lg border border-slate-200 p-2 text-center shadow-sm min-w-0">
+                    <div class="text-lg font-bold text-slate-900 truncate" x-text="getIncomingDependencies().length">0</div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-0.5 truncate" title="Dependencies">Dependencies</div>
+                </div>
+                <div class="bg-white rounded-lg border border-blue-200 p-2 text-center shadow-sm bg-blue-50/30 min-w-0">
+                    <div class="text-lg font-bold text-blue-700 truncate" x-text="getIncomingDependencies().filter(d => d.fromTask && !['Blocked', 'Completed', 'Approved'].includes(d.fromTask.status)).length">0</div>
+                    <div class="text-[10px] font-bold text-blue-600 uppercase tracking-wide mt-0.5 truncate" title="Waiting">Waiting</div>
+                </div>
+                <div class="bg-white rounded-lg border border-amber-200 p-2 text-center shadow-sm bg-amber-50/30 min-w-0">
+                    <div class="text-lg font-bold text-amber-700 truncate" x-text="getIncomingDependencies().filter(d => d.fromTask && new Date(d.fromTask.end_date) < new Date() && !['Completed', 'Approved'].includes(d.fromTask.status)).length">0</div>
+                    <div class="text-[10px] font-bold text-amber-600 uppercase tracking-wide mt-0.5 truncate" title="At Risk">At Risk</div>
+                </div>
+                <div class="bg-white rounded-lg border border-red-200 p-2 text-center shadow-sm bg-red-50/30 min-w-0">
+                    <div class="text-lg font-bold text-red-700 truncate" x-text="getIncomingDependencies().filter(d => d.fromTask && d.fromTask.status === 'Blocked').length">0</div>
+                    <div class="text-[10px] font-bold text-red-600 uppercase tracking-wide mt-0.5 truncate" title="Blocked">Blocked</div>
+                </div>
+            </div>
+
+            <section class="space-y-6">
+            <!-- Incoming Requests (Requests directed TO this team) -->
+            <div x-show="getDependencyRequests().length > 0" class="enterprise-card overflow-hidden border-orange-200">
+                <div class="px-5 py-4 border-b border-orange-200 bg-orange-50/50 flex justify-between items-center">
+                    <h3 class="font-bold text-orange-900 text-sm">Requests from Other Teams</h3>
+                    <span class="bg-orange-200 text-orange-800 text-xs font-bold px-2 py-0.5 rounded-full" x-text="getDependencyRequests().length"></span>
+                </div>
+                <div class="p-4 bg-orange-50/20">
+                    <ul class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                        <template x-for="req in getDependencyRequests()" :key="req.dependency.id">
+                            <li @click="openMapRequestModal(req)" class="bg-white rounded-xl border border-orange-200 p-4 shadow-sm hover:border-orange-400 hover:shadow-md transition-all cursor-pointer">
+                                <div class="flex flex-col gap-2 w-full">
+                                    <div class="text-[11px] font-bold text-orange-500 uppercase tracking-wider line-clamp-1" x-text="req.requestingTeam ? 'REQUEST FROM: ' + req.requestingTeam.name : 'REQUEST FROM UNKNOWN TEAM'"></div>
+                                    <div class="font-bold text-slate-900 text-sm line-clamp-2 leading-tight" x-text="req.dependency.request_what_needed"></div>
+                                    <div class="mt-1 flex items-center">
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold border border-orange-200 text-orange-700">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                            <span>Click to Fulfill</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Outgoing Requests (I Need From Other Teams) -->
+            <div class="enterprise-card" style="overflow: visible;">
+                <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center rounded-t-[18px]">
+                    <h3 class="font-bold text-slate-900 text-sm">I Need From Other Teams</h3>
+                    <button @click="openDependencyModal()" class="text-orange-600 hover:text-orange-700 text-sm font-medium flex items-center gap-1">
+                        + Request
+                    </button>
+                </div>
+                <div class="p-4 bg-slate-50/50 rounded-b-[18px]">
+                    <ul class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                        <template x-for="dep in getIncomingDependencies()" :key="dep.dependency.id">
+                            <li @click="openViewDependencyModal(dep)" class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:border-orange-400 hover:shadow-md transition-all cursor-pointer">
+                                <div class="flex flex-col gap-2 w-full">
+                                    <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider line-clamp-1" x-text="dep.fromTeam ? dep.fromTeam.name : 'Unknown Team'"></div>
+                                    <div class="font-bold text-slate-900 text-sm line-clamp-2 leading-tight" x-text="dep.fromTask ? dep.fromTask.name : dep.dependency.request_what_needed"></div>
+                                    <div class="mt-1 flex items-center">
+                                        <span x-show="dep.fromTask" class="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold border border-slate-200 text-slate-700">
+                                            <span class="w-2 h-2 rounded-full" :class="{'bg-emerald-500': ['Completed', 'Approved'].includes(dep.fromTask?.status), 'bg-blue-500': dep.fromTask?.status === 'In Progress', 'bg-red-500': dep.fromTask?.status === 'Blocked', 'bg-yellow-500': ['Under Review', 'Submitted', 'Revision Required'].includes(dep.fromTask?.status), 'bg-slate-300': !dep.fromTask?.status || dep.fromTask?.status === 'Not Started'}"></span>
+                                            <span x-text="dep.fromTask.status"></span>
+                                        </span>
+                                        <span x-show="!dep.fromTask" class="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold border border-slate-200 text-slate-500">
+                                            <span class="w-2 h-2 rounded-full bg-slate-300 border border-slate-400"></span>
+                                            <span>Pending</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </li>
+                        </template>
+                        <li x-show="getIncomingDependencies().length === 0" class="col-span-full py-8 text-center flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl bg-white">
+                            <div class="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3 border border-slate-100">
+                                <svg class="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/></svg>
+                            </div>
+                            <p class="text-sm font-medium text-slate-900">No pending dependencies.</p>
+                            <p class="text-sm text-slate-500 mt-1">Request something from another team if you need their work to continue.</p>
+                            <button @click="openDependencyModal()" class="mt-4 text-orange-600 hover:text-orange-700 text-sm font-medium flex items-center gap-1 border border-orange-200 rounded-lg px-3 py-1.5 bg-orange-50/50 hover:bg-orange-50 transition-colors">
+                                + Request
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+        </div>
+
+
+</div>
+
+<section class="enterprise-card overflow-hidden">
+                <div class="px-5 py-3 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-700 text-sm">Other Teams Need From Us</h3>
+                </div>
+                <div class="p-0">
+                    <ul class="divide-y divide-slate-100">
+                        <template x-for="dep in getOutgoingDependencies()" :key="dep.id">
+                            <li class="p-4 hover:bg-slate-50">
+                                <div class="flex items-start gap-3">
+                                    <div class="mt-0.5 text-slate-400"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg></div>
+                                    <div>
+                                        <div class="text-sm font-semibold text-slate-800" x-text="'Team ' + dep.to_team_name"></div>
+                                        <div class="text-xs text-slate-500 mt-0.5" x-text="dep.to_task_name"></div>
+                                        <div class="text-[10px] uppercase font-bold tracking-wider text-slate-500 mt-2">Waiting on: <span class="text-slate-700" x-text="dep.from_task_name"></span></div>
+                                        <div class="text-[10px] uppercase font-bold tracking-wider text-slate-500 mt-1" x-show="dep.expected_date">Expected by: <span class="text-slate-700" x-text="formatDate(dep.expected_date)"></span></div>
+                                    </div>
+                                </div>
+                            </li>
+                        </template>
+                        <li x-show="getOutgoingDependencies().length === 0" class="p-4 text-center text-slate-400 text-xs">No teams are currently waiting for your work.</li>
+                    </ul>
+                </div>
+            </section>
+
+        </div>
+
+    </div>
+
+
+
+            
+
+<div x-show="showResourcesView" x-cloak>
+<button @click="showResourcesView = false; selectedProjectFolderId = ''" class="mb-4 text-sm font-medium text-slate-500 hover:text-slate-900 flex items-center gap-1"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg> Back to Dashboard</button>
+                <section class="enterprise-card overflow-hidden">
+                    <div class="px-5 py-4 sm:px-6">
+                        <!-- Header & Breadcrumbs -->
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Provided for your project</p>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <button @click="selectedProjectFolderId = ''" class="text-base hover:underline" :class="!selectedProjectFolderId ? 'text-slate-900 font-bold' : 'text-slate-500 font-medium'">Project Resources</button>
+                                    <template x-if="selectedProjectFolderId">
+                                        <div class="flex items-center gap-2 text-base">
+                                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                                            <span class="font-bold text-slate-900" x-text="(projectResourceFolders.find(f => f.id === selectedProjectFolderId) || {}).name"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            
+
+                        </div>
+
+                        <!-- Grid View: Folders and Files -->
+                        <div class="grid gap-4 pb-4" style="grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));">
+                            
+                            <!-- Folders (Only show when at Project Root) -->
+                            <template x-for="folder in projectResourceFolders" :key="folder.id">
+                                <div x-show="!selectedProjectFolderId" class="group relative flex flex-col p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-md transition-all cursor-pointer" @click="selectedProjectFolderId = folder.id">
+                                    <svg class="w-8 h-8 text-slate-400 mb-3" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" /></svg>
+                                    <h4 class="font-medium text-slate-900 truncate" x-text="folder.name"></h4>
+                                    <span class="text-[11px] text-slate-400 mt-1" x-text="new Date(folder.created_at).toLocaleDateString()"></span>
+                                </div>
+                            </template>
+
+                            <!-- Files (Filtered by current folder) -->
+                            <template x-for="resource in filteredStudentProjectResources()" :key="resource.id">
+                                <div class="group relative flex flex-col p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-md transition-all">
+                                    <div class="flex items-start justify-between mb-2">
+                                        <!-- File Icon -->
+                                        <div class="text-orange-500 bg-orange-50 p-2 rounded-lg">
+                                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                        </div>
+                                        
+                                        <!-- Actions -->
+                                        <div class="flex gap-2">
+                                            <button @click.stop="downloadProjectResource(resource)" class="text-slate-400 hover:text-orange-600 transition-colors p-1" title="Download">
+                                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <h4 class="font-medium text-slate-900 truncate" :title="resource.file_name" x-text="resource.file_name"></h4>
+                                    <span class="text-[11px] text-slate-400 mt-1" x-text="formatUploadDate(resource.created_at)"></span>
+                                    
+                                    <!-- Comments Toggle -->
+                                    <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                                        <button @click="toggleStudentResourceComments(resource)" class="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                            Comments
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        
+                        <!-- Empty State -->
+                        <div x-show="(!selectedProjectFolderId && projectResourceFolders.length === 0 && filteredStudentProjectResources().length === 0) || (selectedProjectFolderId && filteredStudentProjectResources().length === 0)" class="mb-4 rounded-xl border-2 border-dashed border-slate-200 px-6 py-12 flex flex-col items-center justify-center text-center">
+                            <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                                <svg class="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" /></svg>
+                            </div>
+                            <h3 class="font-semibold text-slate-800 text-lg">This folder is empty</h3>
+                            <p class="mt-1 text-sm text-slate-500 max-w-sm">No resources have been shared in this folder yet.</p>
+                        </div>
+
+                        <!-- Modern Folder Modal -->
+                        <div x-show="studentFolderModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+                            <div @click.away="!studentFolderModalLoading && (studentFolderModalOpen = false)" class="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+                                <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                                    <h3 class="font-bold text-lg text-slate-900">Create New Folder</h3>
+                                    <button @click="studentFolderModalOpen = false" type="button" class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100">
+                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+                                <form @submit.prevent="submitStudentFolderModal()" class="px-6 py-5 bg-slate-50/50">
+                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Folder Name</label>
+                                    <input type="text" x-model="newProjectResourceFolderName" maxlength="80" placeholder="e.g. Reference Files" class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all shadow-sm" x-ref="studentFolderInput" :disabled="studentFolderModalLoading">
+                                    
+                                    <div class="mt-6 flex items-center justify-end gap-3">
+                                        <button type="button" @click="studentFolderModalOpen = false" class="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 transition-colors" :disabled="studentFolderModalLoading">Cancel</button>
+                                        <button type="submit" class="bg-slate-900 hover:bg-slate-800 text-white rounded-lg px-5 py-2 text-sm font-semibold shadow-sm transition-colors disabled:opacity-70 flex items-center gap-2" :disabled="!newProjectResourceFolderName.trim() || studentFolderModalLoading">
+                                            <span x-show="studentFolderModalLoading" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                            <span>Create</span>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        
+            <!-- Comments Modal/Drawer (Overlay) -->
+                        <template x-for="resource in filteredStudentProjectResources()" :key="'comments-'+resource.id">
+                            <div x-show="openStudentResourceCommentsId === resource.id" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+                                <div @click.away="openStudentResourceCommentsId = null" class="w-full max-w-md bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden max-h-[80vh]">
+                                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                                        <h3 class="font-bold text-slate-900 truncate pr-4">Comments: <span class="font-normal text-slate-600" x-text="resource.file_name"></span></h3>
+                                        <button @click="openStudentResourceCommentsId = null" class="text-slate-400 hover:text-slate-600 p-1 rounded hover:bg-slate-200 transition-colors">
+                                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </div>
+                                    <div class="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/50">
+                                        <template x-for="comment in (studentResourceComments[resource.id] || [])" :key="comment.id">
+                                            <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-100">
+                                                <div class="flex items-baseline justify-between gap-3 mb-1.5">
+                                                    <span class="text-xs font-bold text-slate-800" x-text="comment.author_name"></span>
+                                                    <time class="text-[10px] font-medium text-slate-400" x-text="new Date(comment.created_at).toLocaleString()"></time>
+                                                </div>
+                                                <p class="whitespace-pre-wrap text-sm text-slate-700 leading-relaxed" x-text="comment.body"></p>
+                                            </div>
+                                        </template>
+                                        <div x-show="(studentResourceComments[resource.id] || []).length === 0" class="text-center py-8">
+                                            <p class="text-sm text-slate-500">No comments yet. Start the discussion!</p>
+                                        </div>
+                                    </div>
+                                    <form class="p-4 border-t border-slate-100 bg-white flex gap-3" @submit.prevent="postStudentResourceComment(resource)">
+                                        <input type="text" maxlength="3000" x-model="studentResourceCommentDrafts[resource.id]" placeholder="Write a comment..." class="flex-1 rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all">
+                                        <button type="submit" :disabled="!studentResourceCommentDrafts[resource.id]?.trim()" class="bg-slate-900 hover:bg-slate-800 text-white rounded-lg px-4 py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Post</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+
+                
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div x-show="uploadModalOpen" x-cloak @keydown.escape.window="closeUploadModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" role="dialog" aria-modal="true" aria-labelledby="upload-title">
+        <div @click.outside="closeUploadModal" class="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-7">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-orange-700">Team Workspace</p>
+                    <h2 id="upload-title" class="mt-1 text-xl font-semibold text-slate-900">Upload deliverable</h2>
+                </div>
+                <button @click="closeUploadModal" :disabled="uploading" aria-label="Close upload dialog" class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40">
+                    <svg aria-hidden="true" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m6 6 12 12M18 6 6 18"/></svg>
+                </button>
+            </div>
+
+            <div x-show="!uploadSuccess" class="mt-5">
+                <label for="deliverable-file" class="file-drop-zone flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-xl px-5 py-7 text-center transition" :class="draggingFile ? 'dragging' : 'bg-slate-50 hover:bg-orange-50/50'" @dragover.prevent="draggingFile = true" @dragleave.prevent="draggingFile = false" @drop.prevent="handleFileDrop($event)">
+                    <span class="grid h-11 w-11 place-items-center rounded-xl bg-white text-orange-600 shadow-sm">
+                        <svg aria-hidden="true" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M12 16V4m0 0L7 9m5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
+                    </span>
+                    <span class="mt-3 text-sm font-semibold text-slate-800">Drag and drop a file here</span>
+                    <span class="mt-1 text-xs text-slate-500">or choose a file from your device</span>
+                    <span class="mt-4 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Choose file</span>
+                </label>
+                <input id="deliverable-file" type="file" class="sr-only" @change="selectUploadFile($event)">
+
+                <div class="max-h-48 overflow-y-auto pr-2 space-y-2 mt-4" x-show="uploadFilesSelected.length > 0">
+                    <template x-for="(file, index) in uploadFilesSelected" :key="index">
+                        <div class="flex items-center gap-3 rounded-xl border border-slate-200 p-3 bg-white">
+                            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-orange-50 text-orange-700">
+                                <svg aria-hidden="true" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M7 3.75h6l5 5v11.5H7a2 2 0 01-2-2v-12.5a2 2 0 012-2z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M13 4v5h5"/></svg>
+                            </span>
+                            <span class="min-w-0 flex-1 truncate text-sm font-medium text-slate-700" x-text="file.name"></span>
+                            <button @click="clearUploadFile(index)" :disabled="uploading" class="text-xs font-medium text-red-500 hover:text-red-700 disabled:opacity-40">Remove</button>
+                        </div>
+                    </template>
+                </div>
+
+                <div x-show="uploadError" x-cloak role="alert" class="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" x-text="uploadError"></div>
+                <div x-show="uploading" x-cloak class="mt-4" role="status" aria-live="polite">
+                    <div class="flex items-center justify-between text-xs text-slate-600"><span>Uploading file…</span><span>Please keep this window open</span></div>
+                    <progress class="mt-2 h-1.5 w-full accent-orange-600"></progress>
+                </div>
+                <div class="mt-6 flex flex-col-reverse gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:justify-end">
+                    <button @click="closeUploadModal" :disabled="uploading" class="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-40">Cancel</button>
+                    <button @click="uploadFile" :disabled="uploadFilesSelected.length === 0 || uploading" class="btn-primary rounded-xl px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50" x-text="uploading ? 'Uploading…' : 'Upload'"></button>
+                </div>
+            </div>
+
+            <div x-show="uploadSuccess" x-cloak class="py-8 text-center">
+                <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-green-50 text-green-700">
+                    <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 12 4 4L19 6"/></svg>
+                </div>
+                <h3 class="mt-4 text-lg font-semibold text-slate-900">File uploaded successfully</h3>
+                <p class="mt-1 truncate px-4 text-sm text-slate-500" x-text="uploadFilesSelected.length + ' file(s) uploaded successfully'"></p>
+                <button @click="closeUploadModal" class="btn-primary mt-6 rounded-xl px-5 py-2.5 text-sm font-semibold">Done</button>
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- Rename Modal -->
+    <div x-show="renameModalOpen" x-cloak @keydown.escape.window="renameModalOpen = false" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" role="dialog" aria-modal="true">
+        <div @click.outside="renameModalOpen = false" class="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <h2 class="text-lg font-semibold text-slate-900" x-text="renameModalTitle"></h2>
+            <div class="mt-4">
+                <input type="text" x-model="renameModalInput" @keydown.enter="renameModalOpen = false; renameModalCallback(renameModalInput)" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" placeholder="New name...">
+            </div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button @click="renameModalOpen = false" class="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
+                <button @click="renameModalOpen = false; renameModalCallback(renameModalInput)" class="btn-primary rounded-xl px-4 py-2 text-sm font-semibold">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div x-show="confirmModalOpen" x-cloak @keydown.escape.window="confirmModalOpen = false" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" role="dialog" aria-modal="true">
+        <div @click.outside="confirmModalOpen = false" class="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0 grid h-10 w-10 place-items-center rounded-full bg-red-50 text-red-600">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </div>
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-900" x-text="confirmModalTitle"></h2>
+                    <p class="mt-1 text-sm text-slate-500 whitespace-pre-wrap" x-text="confirmModalMessage"></p>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button @click="confirmModalOpen = false" class="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
+                <button @click="confirmModalOpen = false; confirmModalCallback()" class="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 shadow-sm" x-text="confirmModalActionText"></button>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="sessionWarning" x-cloak class="fixed bottom-4 left-4 right-4 z-40 mx-auto max-w-3xl rounded-2xl border border-amber-200 bg-white p-4 shadow-xl sm:bottom-6 sm:flex sm:items-center sm:justify-between sm:gap-6" role="status" aria-live="polite">
+        <div class="min-w-0">
+            <p class="text-sm font-semibold text-slate-900">Your session expires in <span class="tabular-nums" x-text="formatSessionCountdown()"></span></p>
+            <p class="mt-0.5 text-xs text-slate-500">Stay signed in to continue working.</p>
+        </div>
+        <div class="mt-3 flex shrink-0 gap-2 sm:mt-0">
+            <button @click="logout()" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Sign out</button>
+            <button @click="extendSession()" class="btn-primary rounded-lg px-4 py-2 text-sm font-semibold">Stay signed in</button>
+        </div>
+    </div>
+
+    <!-- GDPR Cookie Consent Banner -->
+    <div x-show="cookieConsent" style="display: none;" class="fixed bottom-0 left-0 w-full bg-slate-900 text-white p-4 shadow-2xl z-50 flex flex-col md:flex-row items-center justify-between px-8">
+        <div class="mb-4 md:mb-0 text-sm text-slate-300">
+            <strong class="text-white">GDPR Compliance Notice:</strong> This academic portal uses essential cookies and secure tokens solely for authentication and session management. By continuing to use this service, you consent to our data processing terms.
+        </div>
+        <div class="flex gap-4">
+            <button @click="cookieConsent = false" class="text-slate-400 hover:text-white text-sm font-medium transition-colors">Decline</button>
+            <button @click="localStorage.setItem('gdpr_consent', 'true'); cookieConsent = false" class="bg-orange-500 hover:bg-orange-600 px-6 py-2 rounded-lg text-sm font-bold shadow-lg text-white">Accept & Continue</button>
+        </div>
+    </div>
+
+    <script>
+        function startActivitySession(app, getToken, idleSeconds, onExpire) {
+            let lastActivityAt = Date.now();
+            let lastHeartbeatAt = 0;
+            let expired = false;
+            const tokenExpiry = () => {
+                try {
+                    const segment = getToken().split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                    const payload = JSON.parse(atob(segment + '='.repeat((4 - segment.length % 4) % 4)));
+                    return payload.exp * 1000;
+                } catch {
+                    return Date.now();
+                }
+            };
+            const heartbeat = async () => {
+                const token = getToken();
+                if (!token) return;
+                lastHeartbeatAt = Date.now();
+                try {
+                    const response = await fetch('http://127.0.0.1:5001/api/auth/session/activity', {method: 'POST', headers: {'Authorization': 'Bearer ' + token}});
+                    if (response.status === 401 && !expired) { expired = true; onExpire(); }
+                } catch {}
+            };
+            const markActivity = () => {
+                if (expired) return;
+                lastActivityAt = Date.now();
+                app.sessionWarning = false;
+                if (Date.now() - lastHeartbeatAt >= 60000) heartbeat();
+            };
+            const tick = () => {
+                if (expired) return;
+                const now = Date.now();
+                const remaining = Math.min(idleSeconds * 1000 - (now - lastActivityAt), tokenExpiry() - now);
+                app.sessionSecondsLeft = Math.max(0, Math.ceil(remaining / 1000));
+                app.sessionWarning = remaining <= 300000;
+                if (remaining <= 0) { expired = true; onExpire(); }
+            };
+            ['keydown', 'pointerdown', 'pointermove', 'touchstart', 'scroll'].forEach(name => document.addEventListener(name, markActivity, {passive: true}));
+            heartbeat();
+            const timerId = window.setInterval(tick, 1000);
+            return {
+                stop() {
+                    expired = true;
+                    window.clearInterval(timerId);
+                    ['keydown', 'pointerdown', 'pointermove', 'touchstart', 'scroll'].forEach(name => document.removeEventListener(name, markActivity));
+                },
+                extend: async () => { markActivity(); await heartbeat(); }
+            };
+        }
+
+        function teacherApp() {
+            return {
+                email: '',
+                otp: '',
+                otpSent: false,
+                token: localStorage.getItem('student_token') || '',
+                student: JSON.parse(localStorage.getItem('student_profile') || 'null'),
+                files: [],
+                team: {name: '', members: [], project_id: null},
+                isEmbed: false,
+                initialTeamId: null,
+                selectedTeamId: '',
+                project: {name: ''},
+
+                projectTasks: [],
+
+                viewState: 'projects', // 'projects' or 'dashboard'
+                myProjects: [],
+                myTeams: [],
+                selectedProjectId: null,
+
+                workPackages: [],
+                activities: [],
+                expandedWorkPackages: {},
+                expandedActivities: {},
+                wpModalOpen: false,
+                wpForm: { id: null, name: '', description: '' },
+                wpLoading: false,
+                actModalOpen: false,
+                actForm: { id: null, work_package_id: null, name: '', description: '' },
+                actLoading: false,
+                targetWpId: null,
+                targetActId: null,
+
+                projectDeliverables: [],
+                projectDependencies: [],
+                allTeams: [],
+                showResourcesView: false,
+                projectResources: [],
+                projectResourceFolders: [],
+                selectedProjectFolderId: '',
+                newProjectResourceFolderName: '',
+                studentFolderModalOpen: false,
+                studentFolderModalLoading: false,
+                realtimeStatus: 'disconnected', // disconnected, connecting, live
+                realtimeToasts: [],
+                eventSource: null,
+                clientId: crypto.randomUUID(),
+
+                initRealtime() {
+                    if (!this.team || !this.team.id) return;
+                    if (this.eventSource) this.eventSource.close();
+                    this.realtimeStatus = 'connecting';
+                    this.eventSource = new EventSource(`http://127.0.0.1:5001/api/stream?token=${this.token}&client_id=${this.clientId}&team_id=${this.team.id}`);
+                    
+                    this.eventSource.onopen = () => {
+                        this.realtimeStatus = 'live';
+                    };
+                    
+                    this.eventSource.onerror = () => {
+                        this.realtimeStatus = 'disconnected';
+                        this.eventSource.close();
+                        setTimeout(() => this.initRealtime(), 5000);
+                    };
+
+                    this.eventSource.onmessage = async (e) => {
+                        try {
+                            const event = JSON.parse(e.data);
+                            if (event.type === 'CONNECTED') {
+                                this.realtimeStatus = 'live';
+                            } else if (event.type === 'COLLECTION_MUTATED') {
+                                const col = event.payload.collection;
+                                if (!this.team || !this.team.project_id) return;
+                                
+                                if (col === 'tasks') {
+                                    let res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/tasks`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                                    if(res.ok) { let d = await res.json(); this.projectTasks = d.tasks.filter(t => t.activity_id); }
+                                } else if (col === 'dependencies') {
+                                    let res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/dependencies`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                                    if(res.ok) { let d = await res.json(); this.projectDependencies = d.dependencies; }
+                                } else if (col === 'work_packages') {
+                                    let res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/work_packages`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                                    if(res.ok) { let d = await res.json(); this.workPackages = d.work_packages; }
+                                } else if (col === 'activities') {
+                                    let res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/activities`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                                    if(res.ok) { let d = await res.json(); this.activities = d.activities; }
+                                } else if (col === 'files') {
+                                    this.fetchFiles();
+                                }
+                            } else if (event.type === 'NOTIFICATION') {
+                                const id = Date.now().toString();
+                                this.realtimeToasts.push({
+                                    id: id,
+                                    title: event.payload.title,
+                                    message: event.payload.message
+                                });
+                                setTimeout(() => {
+                                    this.realtimeToasts = this.realtimeToasts.filter(t => t.id !== id);
+                                }, 5000);
+                            }
+                        } catch (err) {}
+                    };
+                },
+
+                dismissToast(id) {
+                    this.realtimeToasts = this.realtimeToasts.filter(t => t.id !== id);
+                },
+
+
+                dependencyModalOpen: false,
+                depFromTeamId: '', depFromWpId: '', depFromActId: '', depWhatNeeded: '', mapModalOpen: false, mapToTaskId: '', mappingRequest: null, mapLoading: false,
+                depExpectedDate: '',
+                depToTaskId: '',
+                depLoading: false,
+                depReason: '',
+                impactModalOpen: false,
+                impactedTasks: [],
+                viewTaskModalOpen: false,
+                viewDependencyModalOpen: false,
+                selectedViewDependency: null,
+                viewTaskData: null,
+                viewTaskTeam: null,
+                taskToUpdate: null,
+                depReason: '',
+                depExpectedDate: '',
+                impactModalOpen: false,
+                impactedTasks: [],
+
+                taskToUpdate: null,
+                
+                    confirmModalOpen: false,
+                    confirmModalTitle: '',
+                    confirmModalMessage: '',
+                    confirmModalActionText: 'Confirm',
+                    confirmModalCallback: null,
+                    
+                    renameModalOpen: false,
+                    renameModalTitle: '',
+                    renameModalInput: '',
+                    renameModalCallback: null,
+activeDropdown: null,
+                    deliverableFolders: [],
+                selectedDeliverableFolderId: '',
+                newDeliverableFolderName: '',
+                deliverableFolderModalOpen: false,
+                deliverableFolderModalLoading: false,
+                uploadModalOpen: false,
+                uploadFilesSelected: [],
+                uploading: false,
+                uploadSuccess: false,
+                uploadError: '',
+                draggingFile: false,
+                consentRequired: false,
+                marketingChoiceRequired: false,
+                consentScreenOpen: false,
+                privacyNoticeAcknowledged: false,
+                marketingUseConsent: false,
+                consentSaving: false,
+                cookieConsent: localStorage.getItem('gdpr_consent') !== 'true',
+                sessionWarning: false,
+                sessionExpiredMessage: false,
+                sessionSecondsLeft: 0,
+                sessionMonitor: null,
+
+                promptStudentCreateFolder() {
+                    this.newProjectResourceFolderName = '';
+                    this.studentFolderModalOpen = true;
+                    setTimeout(() => { if (this.$refs.studentFolderInput) this.$refs.studentFolderInput.focus() }, 100);
+                },
+                
+                async submitStudentFolderModal() {
+                    const name = this.newProjectResourceFolderName.trim();
+                    if (!name) return;
+                    
+                    this.studentFolderModalLoading = true;
+                    try {
+                        const res = await fetch(`http://127.0.0.1:5001/api/students/resource-folders`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
+                            body: JSON.stringify({name})
+                        });
+                        if (res.status === 401) return this.logout();
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || 'Unable to create folder');
+                        await this.fetchProjectResourceFolders();
+                        this.selectedProjectFolderId = data.folder.id;
+                        this.studentFolderModalOpen = false;
+                    } catch (error) {
+                        alert(error.message || 'Error creating folder');
+                    } finally {
+                        this.studentFolderModalLoading = false;
+                    }
+                },
+
+                
+                
+                init() {
+                    let urlParams = new URLSearchParams(window.location.search);
+                    if(urlParams.has('embed')) this.isEmbed = true;
+                    if(urlParams.has('token')) {
+                        this.token = urlParams.get('token');
+                        localStorage.setItem('student_token', this.token);
+                    }
+                    if(urlParams.has('team_id')) {
+                        this.initialTeamId = urlParams.get('team_id');
+                    }
+                    
+                    if (this.token) {
+                        this.startSessionMonitor();
+                        this.fetchTeamsAndProjects();
+                        this.initRealtime();
+                    }
+                },
+
+                
+                
+                async fetchTeamsAndProjects() {
+                    if (this.isEmbed) {
+                        let res = await fetch('http://127.0.0.1:5001/api/admin/students/teams', {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                        if(res.ok) { 
+                            let d = await res.json(); 
+                            this.allTeams = d;
+                            if(this.allTeams.length > 0) {
+                                this.selectedTeamId = this.initialTeamId || this.allTeams[0].id;
+                                this.viewState = 'dashboard';
+                                await this.onTeamSelected();
+                            }
+                        }
+                    } else {
+                        // Teacher login
+                        let res = await fetch('http://127.0.0.1:5001/api/teacher/projects', {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                        if(res.ok) {
+                            this.myProjects = await res.json();
+                            this.viewState = 'projects';
+                        }
+                    }
+                },
+                
+                selectProject(p) {
+                    this.selectedProjectId = p.id;
+                    this.myTeams = p.teams || [];
+                    this.project = { name: p.name };
+                    // Just stay in projects view but show teams, or move directly to dashboard if 1 team?
+                    // We will just update the UI in 'projects' state to show teams for the selected project
+                },
+                
+                async selectTeam(t) {
+                    this.selectedTeamId = t.id;
+                    this.viewState = 'dashboard';
+                    // spoof this.team so fetchTeam doesn't fail, or just use the team id
+                    this.team = t; 
+                    await this.fetchProjectData();
+                    await this.fetchProjectResources();
+                    await this.fetchProjectResourceFolders();
+                    await this.fetchDeliverableFolders();
+                    await this.fetchFiles();
+                    this.initRealtime();
+                },
+
+
+                async onTeamSelected() {
+                    if(!this.selectedTeamId) return;
+                    this.team = this.allTeams.find(t => t.id === this.selectedTeamId) || this.team;
+                    if(this.team && this.team.project_id) {
+                        await this.fetchProjectData();
+                        this.fetchFiles();
+                        this.fetchDeliverableFolders();
+                        this.fetchProjectResources();
+                        this.fetchProjectResourceFolders();
+                    }
+                },
+
+
+                startSessionMonitor() {
+                    if (this.sessionMonitor) this.sessionMonitor.stop();
+                    this.sessionMonitor = startActivitySession(this, () => this.token, 60 * 60, () => this.logout(true));
+                },
+
+                formatSessionCountdown() {
+                    const minutes = Math.floor(this.sessionSecondsLeft / 60).toString().padStart(2, '0');
+                    const seconds = (this.sessionSecondsLeft % 60).toString().padStart(2, '0');
+                    return `${minutes}:${seconds}`;
+                },
+
+                async extendSession() {
+                    if (this.sessionMonitor) await this.sessionMonitor.extend();
+                },
+
+                async revokeSession() {
+                    if (!this.token) return;
+                    try {
+                        await fetch('http://127.0.0.1:5001/api/auth/session/logout', {method: 'POST', headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                    } catch {}
+                },
+
+                
+                async requestOtp() {
+                    if (!this.email) return alert('Please enter your email.');
+                    const res = await fetch('http://127.0.0.1:5001/api/teacher/auth/request-otp', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ email: this.email })
+                    });
+                    const data = await res.json();
+                    if(data.error) alert(data.error);
+                    else {
+                        alert(data.message);
+                        this.otpSent = true;
+                    }
+                },
+
+                startOverLogin() {
+                    this.sessionExpiredMessage = false;
+                    this.otpSent = false;
+                    this.otp = '';
+                },
+
+                async verifyOtp() {
+                    if (!this.otp) return alert('Please enter the OTP.');
+                    const res = await fetch('http://127.0.0.1:5001/api/teacher/auth/verify-otp', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ email: this.email, otp: this.otp })
+                    });
+                    const data = await res.json();
+                    if(data.error) alert(data.error);
+                    else {
+                        this.token = data.token;
+                        localStorage.setItem('student_token', data.token); // using same key for ease
+                        this.sessionExpiredMessage = false;
+                        this.init();
+                    }
+                },
+
+
+                async fetchPrivacyChoices() {
+                    const res = await fetch('http://127.0.0.1:5001/api/students/consent', {
+                        headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                    });
+                    if (res.status === 401) return this.logout(true);
+                    const data = await res.json();
+                    if (!res.ok) return alert(data.error || 'Unable to load privacy choices');
+                    this.consentRequired = data.required;
+                    this.marketingChoiceRequired = data.marketing_choice_required;
+                    this.privacyNoticeAcknowledged = !data.required;
+                    this.marketingUseConsent = data.marketing_use;
+                    this.consentScreenOpen = data.required || data.marketing_choice_required;
+                    if (!data.required && this.team && this.team.id) {
+                        await this.fetchTeam();
+                        await this.fetchProjectResources();
+                        await this.fetchProjectResourceFolders();
+                        await this.fetchDeliverableFolders();
+                        await this.fetchFiles();
+                    }
+                },
+
+                async openPrivacyChoices() {
+                    await this.fetchPrivacyChoices();
+                    if (!this.consentRequired) this.consentScreenOpen = true;
+                },
+
+                async savePrivacyChoices() {
+                    if (!this.privacyNoticeAcknowledged || this.consentSaving) return;
+                    this.consentSaving = true;
+                    try {
+                        const res = await fetch('http://127.0.0.1:5001/api/students/consent', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
+                            body: JSON.stringify({
+                                privacy_notice_acknowledged: this.privacyNoticeAcknowledged,
+                                marketing_use: this.marketingUseConsent
+                            })
+                        });
+                        const data = await res.json();
+                        if (res.status === 401) return this.logout(true);
+                        if (!res.ok || data.error) return alert(data.error || 'Unable to save privacy choices');
+                        this.consentRequired = false;
+                        this.marketingChoiceRequired = false;
+                        this.consentScreenOpen = false;
+                        if (this.team && this.team.id) {
+                            await this.fetchTeam();
+                            await this.fetchProjectResources();
+                            await this.fetchProjectResourceFolders();
+                            await this.fetchDeliverableFolders();
+                            await this.fetchFiles();
+                        }
+                    } finally {
+                        this.consentSaving = false;
+                    }
+                },
+
+                setAllConsentChoices(selected) {
+                    this.privacyNoticeAcknowledged = selected;
+                    this.marketingUseConsent = selected;
+                },
+
+                async fetchFiles() {
+                    const res = await fetch(`http://127.0.0.1:5001/api/students/files?team_id=${this.team.id}`, {
+                        headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                    });
+                    if (res.status === 401) return this.logout();
+                    this.files = await res.json();
+                },
+                
+                async fetchDeliverableFolders() {
+                    const res = await fetch(`http://127.0.0.1:5001/api/students/file-folders?team_id=${this.team.id}`, {
+                        headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                    });
+                    if (res.status === 401) return this.logout(true);
+                    const data = await res.json();
+                    if (!res.ok) return alert(data.error || 'Unable to load folders');
+                    this.deliverableFolders = data;
+                },
+                
+                
+                filteredStudentProjectResources() {
+                    return this.projectResources.filter(res => (res.folder_id || '') === (this.selectedProjectFolderId || ''));
+                },
+                
+                myTasks() {
+                    return this.projectTasks.filter(t => t.team_id === this.team?.id);
+                },
+                openNewTaskModal() {
+                    this.newTaskActivityId = this.targetActId || '';
+                    this.targetActId = null;
+                    this.newTaskName = '';
+                    this.newTaskDesc = '';
+                    this.newTaskModalOpen = true;
+                },
+                async submitNewTask() {
+                    if (!this.newTaskName.trim()) return;
+                    this.newTaskLoading = true;
+                    try {
+                        const res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/tasks`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId
+                            },
+                            body: JSON.stringify({
+                                activity_id: this.newTaskActivityId,
+                                name: this.newTaskName,
+                                description: this.newTaskDesc
+                            })
+                        });
+                        if (res.ok) {
+                            this.newTaskModalOpen = false;
+                            this.fetchProjectData();
+                        } else {
+                            alert('Failed to create task');
+                        }
+                    } catch (e) {
+                        alert('Error creating task');
+                    }
+                    this.newTaskLoading = false;
+                },
+                openDependencyModal() {
+                    this.depFromTeamId = '';
+                    this.depFromTaskId = '';
+                    this.depToTaskId = '';
+                    this.dependencyModalOpen = true;
+                },
+                
+                formatDate(d) {
+                    if (!d) return 'TBD';
+                    return new Date(d).toLocaleDateString('en-GB', {day:'2-digit', month:'short'});
+                },
+                getStatusColor(status) {
+                    const s = (status || 'NOT STARTED').toUpperCase();
+                    if (s === 'COMPLETED' || s === 'APPROVED') return 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20';
+                    if (s === 'IN PROGRESS') return 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20';
+                    if (s === 'BLOCKED') return 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20';
+                    if (s === 'UNDER REVIEW' || s === 'SUBMITTED' || s === 'REVISION REQUIRED') return 'bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-600/20';
+                    return 'bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-600/20';
+                },
+                getDownstreamTasks(taskId) {
+                    return this.projectDependencies
+                        .filter(d => d.from_task_id === taskId)
+                        .map(d => {
+                            const toTask = this.projectTasks.find(t => t.id === d.to_task_id);
+                            const toTeam = toTask ? this.allTeams.find(tm => tm.id === toTask.team_id) : null;
+                            return { dependency: d, task: toTask, team: toTeam };
+                        }).filter(x => x.task);
+                },
+                getIncomingDependencies() {
+                    if (!this.team?.id) return [];
+                    const myTaskIds = this.myTasks().map(t => t.id);
+                    return this.projectDependencies
+                        .filter(d => myTaskIds.includes(d.to_task_id) || d.to_task_id === 'TEAM_' + this.team.id)
+                        .map(d => {
+                            const fromTask = d.status === 'Mapped' ? this.projectTasks.find(t => t.id === d.from_task_id) : null;
+                            const fromTeam = this.allTeams.find(tm => tm.id === (d.status === 'Mapped' && fromTask ? fromTask.team_id : d.request_from_team_id));
+                            const act = d.status === 'Pending' ? this.activities.find(a => a.id === d.request_from_act_id) : null;
+                            const toTask = this.projectTasks.find(t => t.id === d.to_task_id);
+                            return { dependency: d, fromTask, fromTeam, toTask, act };
+                        });
+                },
+                getDependencyRequests() {
+                    if (!this.team?.id) return [];
+                    return this.projectDependencies.filter(d => 
+                        d.status === 'Pending' && d.request_from_team_id === this.team.id
+                    ).map(d => {
+                        const wp = this.workPackages.find(w => w.id === d.request_from_wp_id);
+                        const act = this.activities.find(a => a.id === d.request_from_act_id);
+                        const requestingTask = this.projectTasks.find(t => t.id === d.to_task_id);
+                        const requestingTeam = requestingTask ? this.allTeams.find(tm => tm.id === requestingTask.team_id) : null;
+                        return { dependency: d, requestingTask, requestingTeam, wp, act };
+                    });
+                },
+                openMapRequestModal(req) {
+                    this.mappingRequest = req;
+                    this.mapToTaskId = '';
+                    this.mapModalOpen = true;
+                },
+                async submitMapRequest() {
+                    if (!this.mappingRequest || !this.mapToTaskId) return;
+                    this.mapLoading = true;
+                    try {
+                        const res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/dependencies/${this.mappingRequest.dependency.id}/map`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId },
+                            body: JSON.stringify({ from_task_id: this.mapToTaskId })
+                        });
+                        if (res.ok) {
+                            this.mapModalOpen = false;
+                            window.location.reload();
+                        } else alert('Failed to map dependency.');
+                    } catch (e) {
+                        console.error(e);
+                    } finally {
+                        this.mapLoading = false;
+                    }
+                },
+                getTeamName(teamId) {
+                    const t = this.allTeams.find(x => x.id === teamId);
+                    return t ? t.name : 'Unknown Team';
+                },
+                async fetchAllTeams() {
+                    if (!this.team?.project_id) return;
+                    let res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/teams`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                    if(res.ok) { let d = await res.json(); this.allTeams = d.teams; }
+                },
+
+
+                getTasksForSelectedTeam() {
+                    if (!this.depFromTeamId) return [];
+                    return this.projectTasks.filter(t => t.team_id === this.depFromTeamId);
+                },
+                async submitDependency() {
+                    if (!this.depFromActId || !this.depWhatNeeded) return;
+                    this.depLoading = true;
+                    try {
+                        const res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/dependencies`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId
+                            },
+                            body: JSON.stringify({
+                                dependency_type: 'Finish-to-Start',
+                                reason: this.depReason,
+                                expected_date: this.depExpectedDate,
+                                request_from_team_id: this.depFromTeamId,
+                                request_from_wp_id: this.depFromWpId,
+                                request_from_act_id: this.depFromActId,
+                                request_what_needed: this.depWhatNeeded
+                            })
+                        });
+                        if (res.ok) {
+                            this.dependencyModalOpen = false;
+                            window.location.reload();
+                        } else {
+                            alert('Failed to create dependency request.');
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        alert('Network error.');
+                    } finally {
+                        this.depLoading = false;
+                    }
+                },
+filteredDeliverables() {
+                    return this.files.filter(file => (file.folder_id || '') === (this.selectedDeliverableFolderId || ''));
+                },
+                
+                
+                async deleteDeliverableFolder(folderId) {
+                    
+                    this.confirmModalTitle = 'Delete Folder';
+                    this.confirmModalMessage = 'Are you sure you want to delete this folder? Files inside will be moved out of the folder.';
+                    this.confirmModalActionText = 'Delete Folder';
+                    this.confirmModalCallback = async () => {
+
+                    try {
+                        const res = await fetch(`http://127.0.0.1:5001/api/students/file-folders/${folderId}`, {
+                            method: 'DELETE',
+                            headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                        });
+                        if (res.status === 401) return this.logout(true);
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || 'Failed to delete folder');
+                        await this.fetchDeliverableFolders();
+                        await this.fetchFiles(); // since files get moved to root
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                    };
+                    this.confirmModalOpen = true;
+                },
+                
+                
+                promptRenameDeliverableFile(file) {
+                    
+                    this.renameModalTitle = 'Rename File';
+                    this.renameModalInput = file.file_name;
+                    this.renameModalCallback = (newName) => {
+                        if (!newName || newName.trim() === '' || newName === file.file_name) return;
+                        this.renameDeliverableFile(file.id, newName.trim());
+                    };
+                    this.renameModalOpen = true;
+
+                },
+                
+                async renameDeliverableFile(fileId, newName) {
+                    try {
+                        const res = await fetch(`http://127.0.0.1:5001/api/students/files/${fileId}`, {
+                            method: 'PUT',
+                            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
+                            body: JSON.stringify({ name: newName })
+                        });
+                        if (res.status === 401) return this.logout(true);
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || 'Failed to rename file');
+                        await this.fetchFiles();
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
+
+
+                promptDeleteWp(wp) {
+                    this.confirmModalTitle = 'Delete Work Package';
+                    this.confirmModalMessage = `Are you sure you want to delete the work package "${wp.name}"? This will also delete all its activities and tasks.`;
+                    this.confirmModalActionText = 'Delete Work Package';
+                    this.confirmModalCallback = async () => {
+                        try {
+                            const res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/work_packages/${wp.id}`, {
+                                method: 'DELETE',
+                                headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                            });
+                            if (!res.ok) throw new Error('Failed to delete work package');
+                            await this.fetchProjectData();
+                        } catch(err) {
+                            alert(err.message);
+                        }
+                    };
+                    this.confirmModalOpen = true;
+                },
+                promptDeleteAct(act) {
+                    this.confirmModalTitle = 'Delete Activity';
+                    this.confirmModalMessage = `Are you sure you want to delete the activity "${act.name}"? This will also delete all its tasks.`;
+                    this.confirmModalActionText = 'Delete Activity';
+                    this.confirmModalCallback = async () => {
+                        try {
+                            const res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/activities/${act.id}`, {
+                                method: 'DELETE',
+                                headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                            });
+                            if (!res.ok) throw new Error('Failed to delete activity');
+                            await this.fetchProjectData();
+                        } catch(err) {
+                            alert(err.message);
+                        }
+                    };
+                    this.confirmModalOpen = true;
+                },
+                promptDeleteTask(task) {
+                    const downstreams = this.projectDependencies.filter(d => d.from_task_id === task.id);
+                    let message = 'Are you sure you want to permanently delete this task?';
+                    
+                    if (downstreams.length > 0) {
+                        message = 'WARNING\n\nThis task is a dependency for other tasks.\n\nDeleting this task will invalidate these dependencies and may unblock downstream work unexpectedly. Are you sure?';
+                    }
+                    
+                    this.confirmModalTitle = 'Delete Task';
+                    this.confirmModalMessage = message;
+                    this.confirmModalActionText = 'Delete Task';
+                    this.confirmModalCallback = async () => {
+                        try {
+                            const res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/tasks/${task.id}`, {
+                                method: 'DELETE',
+                                headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                            });
+                            if (res.status === 401) return this.logout(true);
+                            const data = await res.json();
+                            if (!res.ok) throw new Error(data.error || 'Failed to delete task');
+                            await this.fetchProjectData();
+                        } catch (err) {
+                            alert(err.message);
+                        }
+                    };
+                    this.confirmModalOpen = true;
+                },
+
+                async deleteDeliverableFile(fileId) {
+                    
+                    this.confirmModalTitle = 'Delete File';
+                    this.confirmModalMessage = 'Are you sure you want to permanently delete this file?';
+                    this.confirmModalActionText = 'Delete File';
+                    this.confirmModalCallback = async () => {
+
+                    try {
+                        const res = await fetch(`http://127.0.0.1:5001/api/students/files/${fileId}`, {
+                            method: 'DELETE',
+                            headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                        });
+                        if (res.status === 401) return this.logout(true);
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || 'Failed to delete file');
+                        await this.fetchFiles();
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                    };
+                    this.confirmModalOpen = true;
+                },
+
+                promptRenameDeliverableFolder(folder) {
+                    
+                    this.renameModalTitle = 'Rename Folder';
+                    this.renameModalInput = folder.name;
+                    this.renameModalCallback = (newName) => {
+                        if (!newName || newName.trim() === '' || newName === folder.name) return;
+                        this.renameDeliverableFolder(folder.id, newName.trim());
+                    };
+                    this.renameModalOpen = true;
+
+                },
+                
+                async renameDeliverableFolder(folderId, newName) {
+                    try {
+                        const res = await fetch(`http://127.0.0.1:5001/api/students/file-folders/${folderId}`, {
+                            method: 'PUT',
+                            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
+                            body: JSON.stringify({ name: newName })
+                        });
+                        if (res.status === 401) return this.logout(true);
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || 'Failed to rename folder');
+                        await this.fetchDeliverableFolders();
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                },
+
+                promptDeliverableFolder() {
+                    this.newDeliverableFolderName = '';
+                    this.deliverableFolderModalOpen = true;
+                },
+                
+                async submitDeliverableFolder() {
+                    if (!this.newDeliverableFolderName.trim()) return;
+                    this.deliverableFolderModalLoading = true;
+                    try {
+                        const res = await fetch(`http://127.0.0.1:5001/api/students/file-folders?team_id=${this.team.id}`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
+                            body: JSON.stringify({name: this.newDeliverableFolderName})
+                        });
+                        if (res.status === 401) return this.logout(true);
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || 'Unable to create folder');
+                        await this.fetchDeliverableFolders();
+                        this.selectedDeliverableFolderId = data.id;
+                        this.deliverableFolderModalOpen = false;
+                    } catch (error) {
+                        alert(error.message || 'Error creating folder');
+                    } finally {
+                        this.deliverableFolderModalLoading = false;
+                    }
+                },
+
+                
+                
+                taskModalOpen: false,
+                editingTask: null,
+                criticalImpactWarning: false,
+                impactedTasksList: '',
+                taskForm: { name: '', description: '', start_date: '', end_date: '', status: 'Not Started' },
+                
+                openNewTaskModal() {
+                    this.newTaskActivityId = this.targetActId || '';
+                    this.targetActId = null;
+                    this.editingTask = null;
+                    this.criticalImpactWarning = false;
+                    this.taskForm = { activity_id: this.newTaskActivityId || '', name: '', description: '', start_date: '', end_date: '', status: 'Not Started', owner_student_id: '' };
+                    this.taskModalOpen = true;
+                },
+                
+                openEditTaskModal(task) {
+                    this.editingTask = task;
+                    this.criticalImpactWarning = false;
+                    this.taskForm = { ...task };
+                    this.taskModalOpen = true;
+                },
+                openViewDependencyModal(dep) {
+                    this.selectedViewDependency = dep;
+                    this.viewDependencyModalOpen = true;
+                },
+                openViewTaskModal(task, team) {
+                    this.viewTaskData = task;
+                    this.viewTaskTeam = team;
+                    this.viewTaskModalOpen = true;
+                },
+                
+                checkCriticalImpact() {
+                    if (!this.editingTask || !this.taskForm.end_date) {
+                        this.criticalImpactWarning = false;
+                        return;
+                    }
+                    
+                    const oldDate = new Date(this.editingTask.end_date);
+                    const newDate = new Date(this.taskForm.end_date);
+                    
+                    if (newDate > oldDate) {
+                        const downstreams = this.getDownstreamTasks(this.editingTask.id);
+                        if (downstreams.length > 0) {
+                            this.criticalImpactWarning = true;
+                            
+                            this.impactedTasks = downstreams.map(d => {
+                                const plannedStart = new Date(d.task.start_date);
+                                const earliestStart = new Date(newDate);
+                                earliestStart.setDate(earliestStart.getDate() + 1);
+                                
+                                return {
+                                    taskName: d.task.name,
+                                    teamName: d.team ? d.team.name : 'Unknown Team',
+                                    plannedStart: this.formatDate(plannedStart),
+                                    earliestStart: this.formatDate(earliestStart),
+                                    isMilestone: d.task.name.toLowerCase().includes('milestone')
+                                };
+                            });
+                            return;
+                        }
+                    }
+                    this.criticalImpactWarning = false;
+                    this.impactedTasks = [];
+                },
+                
+                async submitTaskModal() {
+                    const url = this.editingTask 
+                        ? `http://127.0.0.1:5001/api/projects/${this.team.project_id}/tasks/${this.editingTask.id}`
+                        : `http://127.0.0.1:5001/api/projects/${this.team.project_id}/tasks`;
+                        
+                    const method = this.editingTask ? 'PUT' : 'POST';
+                    const payload = { ...this.taskForm, team_id: this.team.id };
+                    
+                    const res = await fetch(url, {
+                        method,
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (res.ok) {
+                        this.taskModalOpen = false;
+                        this.fetchProjectData();
+                    } else {
+                        const data = await res.json();
+                        alert(data.error || 'Failed to save task');
+                    }
+                },
+async fetchProjectData() {
+                    if (!this.team.project_id) return;
+                    await this.fetchAllTeams();
+                    let res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/tasks`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                    if(res.ok) { let d = await res.json(); this.projectTasks = d.tasks.filter(t => t.activity_id); }
+                    res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/dependencies`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                    if(res.ok) { let d = await res.json(); this.projectDependencies = d.dependencies; }
+                    res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/work_packages`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                    if(res.ok) { let d = await res.json(); this.workPackages = d.work_packages; }
+                    res = await fetch(`http://127.0.0.1:5001/api/projects/${this.team.project_id}/activities`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                    if(res.ok) { let d = await res.json(); this.activities = d.activities; }
+                },
+                
+                // --- NEW HIERARCHY HELPERS ---
+                getMemberName(id) {
+                    if (!this.team || !this.team.members) return 'Unknown';
+                    const member = this.team.members.find(m => m.id === id);
+                    return member ? member.name : 'Unknown';
+                },
+                getMemberInitials(id) {
+                    const name = this.getMemberName(id);
+                    if (name === 'Unknown') return '?';
+                    const parts = name.split(' ');
+                    if (parts.length >= 2) {
+                        return (parts[0][0] + parts[1][0]).toUpperCase();
+                    }
+                    return parts[0].substring(0, 2).toUpperCase();
+                },
+                getActivitiesForWP(wpId) {
+                    return this.activities.filter(a => a.work_package_id === wpId);
+                },
+                getTasksForActivity(actId) {
+                    return this.projectTasks
+                        .filter(t => t.activity_id === actId)
+                        .sort((a, b) => {
+                            if (!a.start_date && !b.start_date) return 0;
+                            if (!a.start_date) return 1;
+                            if (!b.start_date) return -1;
+                            return new Date(a.start_date) - new Date(b.start_date);
+                        });
+                },
+                getWpProgress(wpId) {
+                    let acts = this.getActivitiesForWP(wpId);
+                    let totalTasks = 0;
+                    let completedTasks = 0;
+                    for (let act of acts) {
+                        let tasks = this.getTasksForActivity(act.id);
+                        totalTasks += tasks.length;
+                        completedTasks += tasks.filter(t => ['Completed', 'Approved'].includes(t.status)).length;
+                    }
+                    if (totalTasks === 0) return { percent: 0, text: "0 / 0 tasks" };
+                    return { percent: Math.round((completedTasks / totalTasks) * 100), text: `${completedTasks} / ${totalTasks} tasks complete` };
+                },
+                getActProgress(actId) {
+                    let tasks = this.getTasksForActivity(actId);
+                    if (tasks.length === 0) return { percent: 0, text: "0 / 0 tasks" };
+                    let completedTasks = tasks.filter(t => ['Completed', 'Approved'].includes(t.status)).length;
+                    return { percent: Math.round((completedTasks / tasks.length) * 100), text: `${completedTasks} / ${tasks.length} tasks complete` };
+                },
+                getOverallProgress() {
+                    let totalTasks = this.projectTasks.length;
+                    if (totalTasks === 0) return 0;
+                    let completedTasks = this.projectTasks.filter(t => ['Completed', 'Approved'].includes(t.status)).length;
+                    return Math.round((completedTasks / totalTasks) * 100);
+                },
+                toggleWp(wpId) {
+                    this.expandedWorkPackages[wpId] = !this.expandedWorkPackages[wpId];
+                },
+                toggleAct(actId) {
+                    this.expandedActivities[actId] = !this.expandedActivities[actId];
+                },
+                openNewWpModal() {
+                    this.wpForm = { id: null, name: '', description: '' };
+                    this.wpModalOpen = true;
+                },
+                openEditWpModal(wp) {
+                    this.wpForm = { id: wp.id, name: wp.name, description: wp.description || '' };
+                    this.wpModalOpen = true;
+                },
+                async submitWp() {
+                    if(!this.wpForm.name.trim()) return;
+                    this.wpLoading = true;
+                    try {
+                        const isEdit = !!this.wpForm.id;
+                        const url = isEdit 
+                            ? `http://127.0.0.1:5001/api/projects/${this.team.project_id}/work_packages/${this.wpForm.id}`
+                            : `http://127.0.0.1:5001/api/projects/${this.team.project_id}/work_packages`;
+                        const res = await fetch(url, {
+                            method: isEdit ? 'PUT' : 'POST',
+                            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
+                            body: JSON.stringify(this.wpForm)
+                        });
+                        if (!res.ok) throw new Error('Failed to save Work Package');
+                        await this.fetchProjectData();
+                        this.wpModalOpen = false;
+                        if (!isEdit) {
+                            this.expandedWorkPackages[(await res.json()).work_package_id] = true;
+                        }
+                    } catch(err) {
+                        alert(err.message);
+                    } finally {
+                        this.wpLoading = false;
+                    }
+                },
+                openNewActModal(wpId) {
+                    this.actForm = { id: null, work_package_id: wpId, name: '', description: '' };
+                    this.actModalOpen = true;
+                },
+                openEditActModal(act) {
+                    this.actForm = { id: act.id, work_package_id: act.work_package_id, name: act.name, description: act.description || '' };
+                    this.actModalOpen = true;
+                },
+                async submitAct() {
+                    if(!this.actForm.name.trim() || !this.actForm.work_package_id) return;
+                    this.actLoading = true;
+                    try {
+                        const isEdit = !!this.actForm.id;
+                        const url = isEdit
+                            ? `http://127.0.0.1:5001/api/projects/${this.team.project_id}/activities/${this.actForm.id}`
+                            : `http://127.0.0.1:5001/api/projects/${this.team.project_id}/activities`;
+                        const res = await fetch(url, {
+                            method: isEdit ? 'PUT' : 'POST',
+                            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
+                            body: JSON.stringify(this.actForm)
+                        });
+                        if (!res.ok) throw new Error('Failed to save Activity');
+                        await this.fetchProjectData();
+                        this.actModalOpen = false;
+                        if (!isEdit) {
+                            let actId = (await res.json()).activity_id;
+                            this.expandedActivities[actId] = true;
+                        }
+                    } catch(err) {
+                        alert(err.message);
+                    } finally {
+                        this.actLoading = false;
+                    }
+                },
+                openNewTaskModalInActivity(actId) {
+                    this.targetActId = actId;
+                    this.openNewTaskModal();
+                },
+
+
+                
+                getOutgoingDependencies() {
+                    return this.projectDependencies
+                        .filter(d => {
+                            const fromTask = this.projectTasks.find(t => t.id === d.from_task_id);
+                            return fromTask && fromTask.team_id === this.team.id;
+                        })
+                        .map(d => {
+                            const fromTask = this.projectTasks.find(t => t.id === d.from_task_id);
+                            const toTask = this.projectTasks.find(t => t.id === d.to_task_id);
+                            return {
+                                ...d,
+                                from_task_name: fromTask ? fromTask.name : 'Unknown Task',
+                                to_task_name: toTask ? toTask.name : 'Unknown Task',
+                                to_team_name: toTask ? this.getTeamName(toTask.team_id) : 'Unknown Team'
+                            };
+                        });
+                },
+                
+                getTaskStatusColor(status) {
+                    if (status === 'Completed' || status === 'Approved') return 'text-emerald-600';
+                    if (status === 'In Progress') return 'text-orange-600';
+                    if (status === 'Blocked' || status === 'Revision Required') return 'text-red-600';
+                    return 'text-slate-500';
+                },
+
+                
+                async fetchTeam() {
+                    if (this.isEmbed) {
+                        // Keep as is for embed (not exactly correct but wait, fetchTeam currently fetches from /api/students/team)
+                        // If it's a teacher, /api/students/team returns 404 because they don't have a team!
+                        // That's why we spoof 	his.team in selectTeam above and skip fetchTeam.
+                    }
+                },
+
+
+                async fetchProjectResources() {
+                    const res = await fetch(`http://127.0.0.1:5001/api/students/resources?team_id=${this.team.id}`, {
+                        headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                    });
+                    if (res.status === 401) return this.logout(true);
+                    const data = await res.json();
+                    if (!res.ok) return alert(data.error || 'Unable to load shared project resources');
+                    this.projectResources = data;
+                },
+
+                async fetchProjectResourceFolders() {
+                    const res = await fetch(`http://127.0.0.1:5001/api/students/resource-folders?team_id=${this.team.id}`, {
+                        headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                    });
+                    if (res.status === 401) return this.logout(true);
+                    const data = await res.json();
+                    if (!res.ok) return alert(data.error || 'Unable to load folders');
+                    this.projectResourceFolders = data;
+                },
+
+                async downloadProjectResource(resource) {
+                    try {
+                        const res = await fetch(`http://127.0.0.1:5001/api/students/resources/${encodeURIComponent(resource.id)}/download`, {
+                            headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                        });
+                        if (res.status === 401) return this.logout(true);
+                        if (!res.ok) {
+                            const data = await res.json();
+                            return alert(data.error || 'Unable to download shared resource');
+                        }
+                        const objectUrl = URL.createObjectURL(await res.blob());
+                        const link = document.createElement('a');
+                        link.href = objectUrl;
+                        link.download = resource.file_name;
+                        document.body.appendChild(link);
+                        link.click();
+                        link.remove();
+                        URL.revokeObjectURL(objectUrl);
+                    } catch {
+                        alert('Download failed. Check your connection and try again.');
+                    }
+                },
+
+                formatUploadDate(value) {
+                    const date = new Date(value);
+                    return Number.isNaN(date.getTime()) ? 'Date unavailable' : `Uploaded ${date.toLocaleDateString(undefined, {day: 'numeric', month: 'short', year: 'numeric'})}`;
+                },
+
+                openUploadModal() {
+                    this.uploadModalOpen = true;
+                    this.uploadSuccess = false;
+                    this.uploadError = '';
+                },
+
+                closeUploadModal() {
+                    if (this.uploading) return;
+                    this.uploadModalOpen = false;
+                    this.uploadSuccess = false;
+                    this.uploadError = '';
+                    this.clearUploadFile();
+                },
+
+                selectUploadFile(event) {
+                    this.uploadError = '';
+                    this.uploadSuccess = false;
+                    this.uploadFilesSelected = [...this.uploadFilesSelected, ...Array.from(event.target.files || [])];
+                },
+
+                handleFileDrop(event) {
+                    this.draggingFile = false;
+                    this.uploadError = '';
+                    this.uploadSuccess = false;
+                    this.uploadFilesSelected = [...this.uploadFilesSelected, ...Array.from(event.dataTransfer.files || [])];
+                },
+
+                clearUploadFile(index = null) {
+                    if (this.uploading) return;
+                    if (index !== null) {
+                        this.uploadFilesSelected.splice(index, 1);
+                    } else {
+                        this.uploadFilesSelected = [];
+                    }
+                    if (this.uploadFilesSelected.length === 0) {
+                        const input = document.getElementById('deliverable-file');
+                        if (input) input.value = '';
+                    }
+                },
+
+                async uploadFile() {
+                    const files = this.uploadFilesSelected;
+                    if (files.length === 0 || this.uploading) return;
+                    this.uploading = true;
+                    this.uploadError = '';
+                    let successCount = 0;
+                    try {
+                        for (const file of files) {
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            if (this.selectedDeliverableFolderId) {
+                                formData.append('folder_id', this.selectedDeliverableFolderId);
+                        formData.append('team_id', this.team.id);
+                            }
+                            const response = await fetch(`http://127.0.0.1:5001/api/students/files?team_id=${this.team.id}`, {
+                                method: 'POST',
+                                headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
+                                body: formData
+                            });
+                            const data = await response.json();
+                            if (response.status === 401) { this.logout(true); return; }
+                            if (!response.ok || data.error) {
+                                this.uploadError = data.error || 'Failed to upload ' + file.name;
+                                return;
+                            }
+                            successCount++;
+                        }
+                        await this.fetchFiles();
+                        if (successCount === files.length) {
+                            this.uploadSuccess = true;
+                        }
+                    } catch {
+                        this.uploadError = 'Upload failed. Check your connection and try again.';
+                    } finally {
+                        this.uploading = false;
+                        if (this.uploadSuccess) this.clearUploadFile();
+                    }
+                },
+
+                async downloadFile(file) {
+                    try {
+                        const response = await fetch('http://127.0.0.1:5001/api/admin/students/files/' + encodeURIComponent(file.id) + '/download', {
+                            headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                        });
+                        if (response.status === 401) return this.logout(true);
+                        if (!response.ok) {
+                            const data = await response.json();
+                            return alert(data.error || 'Unable to download this file.');
+                        }
+                        const objectUrl = URL.createObjectURL(await response.blob());
+                        const link = document.createElement('a');
+                        link.href = objectUrl;
+                        link.download = file.file_name || 'deliverable';
+                        document.body.appendChild(link);
+                        link.click();
+                        link.remove();
+                        URL.revokeObjectURL(objectUrl);
+                    } catch {
+                        alert('Download failed. Check your connection and try again.');
+                    }
+                },
+
+                logout(expired = false) {
+                    if (this.sessionMonitor) this.sessionMonitor.stop();
+                    this.revokeSession();
+                    this.sessionExpiredMessage = expired;
+                    this.sessionWarning = false;
+                    this.token = '';
+                    this.student = null;
+                    localStorage.removeItem('student_token');
+                    localStorage.removeItem('student_profile');
+                }
+            }
+        }
+    </script>
+
+</div>
+    <!-- Task Modal -->
+    <div x-show="taskModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+        <div @click.away="taskModalOpen = false" class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="font-bold text-lg text-slate-900" x-text="editingTask ? 'Edit Task' : 'New Task'"></h3>
+                <button @click="taskModalOpen = false" type="button" class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <div x-show="criticalImpactWarning" class="bg-yellow-50 p-4 border-b border-yellow-200">
+                <div class="flex gap-3">
+                    <div class="mt-0.5"><svg class="w-5 h-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>
+                    <div class="w-full">
+                        <h4 class="font-bold text-yellow-800 text-sm">PROJECT IMPACT</h4>
+                        <p class="text-sm text-yellow-700 mt-1">This change may affect other project work.</p>
+                        
+                        <div class="mt-3 space-y-3">
+                            <template x-for="impact in impactedTasks" :key="impact.taskName">
+                                <div class="bg-white rounded-lg p-3 border border-yellow-200 shadow-sm">
+                                    <h5 class="text-sm font-bold text-slate-900" x-text="`${impact.teamName} — ${impact.taskName}`"></h5>
+                                    <div class="mt-1 flex flex-col gap-0.5 text-xs">
+                                        <div class="flex justify-between">
+                                            <span class="text-slate-500">Planned start:</span>
+                                            <span class="font-medium text-slate-700" x-text="impact.plannedStart"></span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-slate-500">Earliest possible start:</span>
+                                            <span class="font-bold text-red-600" x-text="impact.earliestStart"></span>
+                                        </div>
+                                    </div>
+                                    <template x-if="impact.isMilestone">
+                                        <div class="mt-2 text-xs font-bold text-red-600 flex items-center gap-1">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                            Project milestone affected
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <form @submit.prevent="submitTaskModal()" class="px-6 py-5 bg-slate-50/50">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Activity</label>
+                        <select x-model="taskForm.activity_id" required class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all bg-white">
+                            <option value="" disabled>Select Activity</option>
+                            <template x-for="act in activities" :key="act.id">
+                                <option :value="act.id" x-text="`${workPackages.find(w=>w.id===act.work_package_id)?.name} - ${act.name}`"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Task Name</label>
+                        <input type="text" x-model="taskForm.name" required class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all placeholder:text-slate-400">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Description</label>
+                        <textarea x-model="taskForm.description" rows="2" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all placeholder:text-slate-400"></textarea>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Start Date</label>
+                            <input type="date" x-model="taskForm.start_date" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">End Date</label>
+                            <input type="date" x-model="taskForm.end_date" @change="checkCriticalImpact" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Assignee</label>
+                            <select x-model="taskForm.owner_student_id" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all bg-white">
+                                <option value="">Unassigned</option>
+                                <template x-for="member in team.members" :key="member.id">
+                                    <option :value="member.id" x-text="member.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Status</label>
+                        <select x-model="taskForm.status" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all">
+                            <option>Not Started</option>
+                            <option>In Progress</option>
+                            <option>Completed</option>
+                            <option>Blocked</option>
+                        </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" @click="taskModalOpen = false" class="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Cancel</button>
+                    <button type="submit" class="btn-primary rounded-xl px-5 py-2 text-sm font-semibold text-white shadow-sm transition-all flex items-center gap-2">
+                        <span x-text="editingTask ? (criticalImpactWarning ? 'Save & Notify Affected Teams' : 'Save Changes') : 'Create Task'"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Map Request Modal -->
+    <div x-show="mapModalOpen" x-cloak @keydown.escape.window="mapModalOpen = false" class="relative z-[100]" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div x-show="mapModalOpen" x-transition.opacity class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                <div x-show="mapModalOpen" 
+                     x-transition:enter="ease-out duration-300" 
+                     x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+                     x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" 
+                     x-transition:leave="ease-in duration-200" 
+                     x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" 
+                     x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+                     @click.away="mapModalOpen = false" 
+                     class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md border border-slate-100">
+                    
+                    <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                        <h3 class="font-bold text-lg text-slate-900" id="modal-title">Fulfill Request</h3>
+                        <button @click="mapModalOpen = false" type="button" class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-200">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                    
+                    <div class="px-6 py-6 space-y-5">
+                        <template x-if="mappingRequest">
+                            <div class="bg-orange-50 rounded-xl p-4 border border-orange-100">
+                                <div class="text-sm text-slate-700 mb-2">They requested:</div>
+                                <div class="font-bold text-orange-900 text-lg mb-1" x-text="mappingRequest.dependency.request_what_needed"></div>
+                                <div class="text-sm text-orange-800 italic" x-text="mappingRequest.dependency.reason"></div>
+                            </div>
+                        </template>
+                        
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Which of your tasks will provide this output?</label>
+                            <select x-model="mapToTaskId" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-white">
+                                <option value="" disabled>Select internal task</option>
+                                <template x-for="task in myTasks()" :key="task.id">
+                                    <option :value="task.id" x-text="task.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-slate-50 px-4 py-4 sm:flex sm:flex-row-reverse sm:px-6 border-t border-slate-100">
+                        <button type="button" @click="submitMapRequest" :disabled="mapLoading || !mapToTaskId" :class="mapLoading || !mapToTaskId ? 'opacity-50 cursor-not-allowed' : 'hover:bg-orange-700 hover:shadow-md hover:shadow-orange-200'" class="inline-flex w-full justify-center rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all sm:ml-3 sm:w-auto">
+                            <span x-show="!mapLoading">Confirm Dependency</span>
+                            <span x-show="mapLoading" class="flex items-center gap-2">
+                                <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Mapping...
+                            </span>
+                        </button>
+                        <button type="button" @click="mapModalOpen = false" class="mt-3 inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 sm:mt-0 sm:w-auto transition-all">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Request Dependency Modal -->
+    <div x-show="dependencyModalOpen" x-cloak @keydown.escape.window="dependencyModalOpen = false" class="relative z-[100]" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div x-show="dependencyModalOpen" x-transition.opacity class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                <div x-show="dependencyModalOpen" 
+                     x-transition:enter="ease-out duration-300" 
+                     x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+                     x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" 
+                     x-transition:leave="ease-in duration-200" 
+                     x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" 
+                     x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+                     @click.away="dependencyModalOpen = false" 
+                     class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg border border-slate-100">
+                    
+                    <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                        <h3 class="font-bold text-lg text-slate-900" id="modal-title">Request Dependency</h3>
+                        <button @click="dependencyModalOpen = false" type="button" class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-200">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                    
+                    <div class="px-6 py-6 space-y-5">
+                        <div class="bg-orange-50 border border-orange-100 rounded-xl p-4 flex gap-3">
+                            <svg class="w-5 h-5 text-orange-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <div class="text-sm text-orange-800">
+                                Request a deliverable or output from another team. They will map your request to their internal tasks.
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">I need something from:</label>
+                            <select x-model="depFromTeamId" @change="depFromWpId = ''; depFromActId = ''" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-white">
+                                <option value="" disabled>Select Team</option>
+                                <template x-for="t in allTeams.filter(t => t.id !== team.id)" :key="t.id">
+                                    <option :value="t.id" x-text="t.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                        
+                        <div x-show="depFromTeamId">
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Work Package:</label>
+                            <select x-model="depFromWpId" @change="depFromActId = ''" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-white">
+                                <option value="" disabled>Select Work Package</option>
+                                <template x-for="wp in workPackages.filter(w => w.team_id === depFromTeamId)" :key="wp.id">
+                                    <option :value="wp.id" x-text="wp.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                        
+                        <div x-show="depFromWpId">
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Activity:</label>
+                            <select x-model="depFromActId" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-white">
+                                <option value="" disabled>Select Activity</option>
+                                <template x-for="act in getActivitiesForWP(depFromWpId)" :key="act.id">
+                                    <option :value="act.id" x-text="act.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                        
+                        <div x-show="depFromActId" class="space-y-4 pt-2 border-t border-slate-100">
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">What do you need?</label>
+                                <input type="text" x-model="depWhatNeeded" placeholder="e.g. Customer expectation analysis" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder:text-slate-400">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">Why?</label>
+                                <input type="text" x-model="depReason" placeholder="e.g. Required for our pricing analysis" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder:text-slate-400">
+                            </div>
+                            <div class="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-slate-700 mb-1">Expected Date</label>
+                                    <input type="date" x-model="depExpectedDate" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-slate-50 px-4 py-4 sm:flex sm:flex-row-reverse sm:px-6 border-t border-slate-100">
+                        <button type="button" @click="submitDependency" :disabled="depLoading || !depFromActId || !depWhatNeeded" :class="depLoading || !depFromActId || !depWhatNeeded ? 'opacity-50 cursor-not-allowed' : 'hover:bg-orange-700 hover:shadow-md hover:shadow-orange-200'" class="inline-flex w-full justify-center rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all sm:ml-3 sm:w-auto">
+                            <span x-show="!depLoading">Send Dependency Request</span>
+                            <span x-show="depLoading" class="flex items-center gap-2">
+                                <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Requesting...
+                            </span>
+                        </button>
+                        <button type="button" @click="dependencyModalOpen = false" class="mt-3 inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 sm:mt-0 sm:w-auto transition-all">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- View Dependency Modal -->
+    <div x-show="viewDependencyModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
+        <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" @click="viewDependencyModalOpen = false"></div>
+        <div class="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden transition-all">
+            <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 class="font-bold text-lg text-slate-900">Dependency Details</h3>
+                <button @click="viewDependencyModalOpen = false" type="button" class="text-slate-400 hover:text-slate-600 transition-colors p-1.5 rounded-lg hover:bg-slate-200 bg-white shadow-sm border border-slate-200">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="p-6 bg-white max-h-[80vh] overflow-y-auto">
+                <template x-if="selectedViewDependency">
+                    <div class="space-y-6">
+                        <!-- Header Section -->
+                        <div>
+                            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Waiting For</div>
+                            <div class="text-lg font-bold text-slate-900" x-text="selectedViewDependency.fromTeam ? selectedViewDependency.fromTeam.name : 'Unknown Team'"></div>
+                        </div>
+
+                        <!-- Target Task Section -->
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2" x-text="selectedViewDependency.fromTask ? 'Required Output' : 'Requested Output'"></div>
+                            <div class="text-base font-semibold text-slate-800 mb-4" x-text="selectedViewDependency.fromTask ? selectedViewDependency.fromTask.name : selectedViewDependency.dependency.request_what_needed"></div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Status</div>
+                                    <span x-show="selectedViewDependency.fromTask" class="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-700 border border-slate-200 shadow-sm">
+                                        <span class="w-2 h-2 rounded-full" :class="{'bg-emerald-500': ['Completed', 'Approved'].includes(selectedViewDependency.fromTask?.status), 'bg-blue-500': selectedViewDependency.fromTask?.status === 'In Progress', 'bg-red-500': selectedViewDependency.fromTask?.status === 'Blocked', 'bg-yellow-500': ['Under Review', 'Submitted', 'Revision Required'].includes(selectedViewDependency.fromTask?.status), 'bg-slate-300': !selectedViewDependency.fromTask?.status || selectedViewDependency.fromTask?.status === 'Not Started'}"></span>
+                                        <span x-text="selectedViewDependency.fromTask.status"></span>
+                                    </span>
+                                    <span x-show="!selectedViewDependency.fromTask" class="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-500 border border-slate-200 shadow-sm">
+                                        <span class="w-2 h-2 rounded-full bg-slate-300 border border-slate-400"></span>
+                                        <span>Pending (Not Mapped)</span>
+                                    </span>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Expected</div>
+                                    <div class="text-sm font-medium text-slate-700 flex items-center gap-1">
+                                        <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                        <span x-text="formatDate(selectedViewDependency.dependency.expected_date)"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Impact Section -->
+                        <div class="space-y-4">
+                            <h4 class="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">Impact on Our Team</h4>
+                            
+                            <div class="grid grid-cols-1 gap-4">
+
+                                
+                                <div class="flex flex-col">
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reason</span>
+                                    <span class="text-sm text-slate-600 italic bg-slate-50 p-3 rounded-lg border border-slate-100 mt-1.5" x-text="selectedViewDependency.dependency.reason || 'No specific reason provided.'"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+                <div class="mt-8 flex justify-end">
+                    <button type="button" @click="viewDependencyModalOpen = false" class="btn-primary px-6 py-2.5 text-sm font-semibold rounded-xl text-white">Close Details</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- View Task Modal -->
+    <div x-show="viewTaskModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+        <div @click.away="viewTaskModalOpen = false" class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="font-bold text-lg text-slate-900">Task Details</h3>
+                <button @click="viewTaskModalOpen = false" type="button" class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="px-6 py-5 bg-slate-50/50">
+                <template x-if="viewTaskData">
+                    <div class="space-y-4">
+                        <div>
+                            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Team</div>
+                            <div class="text-sm font-semibold text-slate-800" x-text="viewTaskTeam ? viewTaskTeam.name : 'Unknown'"></div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Task Name</div>
+                            <div class="text-sm font-medium text-slate-900 mt-1" x-text="viewTaskData.name"></div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Status</div>
+                            <div class="mt-1">
+                                <span :class="getStatusColor(viewTaskData.status)" class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium" x-text="viewTaskData.status || 'Not Started'"></span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Description</div>
+                            <div class="text-sm text-slate-700 mt-1 whitespace-pre-wrap" x-text="viewTaskData.description || 'No description provided.'"></div>
+                        </div>
+                        <div class="grid grid-cols-1 gap-4">
+                            <div>
+                                <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Start Date</div>
+                                <div class="text-sm font-medium text-slate-900 mt-1" x-text="viewTaskData.start_date ? formatDate(viewTaskData.start_date) : 'Not specified'"></div>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">End Date</div>
+                                <div class="text-sm font-medium text-slate-900 mt-1" x-text="viewTaskData.end_date ? formatDate(viewTaskData.end_date) : 'Not specified'"></div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+                <div class="mt-6 flex justify-end">
+                    <button type="button" @click="viewTaskModalOpen = false" class="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create Deliverable Folder Modal -->
+    <div x-show="deliverableFolderModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0" x-cloak>
+        <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" @click="deliverableFolderModalOpen = false"></div>
+        <div class="relative w-full max-w-sm transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
+            <form @submit.prevent="submitDeliverableFolder()" class="p-6">
+                <div class="flex items-center justify-between mb-5">
+                    <h3 class="text-xl font-bold text-slate-900">New Folder</h3>
+                    <button type="button" @click="deliverableFolderModalOpen = false" class="text-slate-400 hover:text-slate-500">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                
+                <div class="mb-6">
+                    <input type="text" x-model="newDeliverableFolderName" placeholder="Folder name" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:outline-none transition-all" x-ref="deliverableFolderInput" :disabled="deliverableFolderModalLoading">
+                </div>
+
+                <div class="flex justify-end gap-3">
+                    <button type="button" @click="deliverableFolderModalOpen = false" class="px-5 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl transition-colors" :disabled="deliverableFolderModalLoading">Cancel</button>
+                    <button type="submit" :disabled="!newDeliverableFolderName.trim() || deliverableFolderModalLoading" class="btn-primary px-5 py-2.5 text-sm font-semibold rounded-xl flex items-center gap-2 disabled:opacity-50">
+                        <span x-show="!deliverableFolderModalLoading">Create</span>
+                        <span x-show="deliverableFolderModalLoading">Creating...</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Work Package Modal -->
+    <div x-show="wpModalOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-0" x-cloak>
+        <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" @click="wpModalOpen = false"></div>
+        <div class="relative w-full max-w-sm transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
+            <form @submit.prevent="submitWp()" class="p-6">
+                <h3 class="text-xl font-bold text-slate-900 mb-5" x-text="wpForm.id ? 'Edit Work Package' : 'New Work Package'"></h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Name</label>
+                        <input type="text" x-model="wpForm.name" required class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none" placeholder="e.g. Market Research">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Description (Optional)</label>
+                        <textarea x-model="wpForm.description" rows="3" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none" placeholder="Describe the purpose of this work package..."></textarea>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" @click="wpModalOpen = false" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl">Cancel</button>
+                    <button type="submit" :disabled="!wpForm.name.trim() || wpLoading" class="btn-primary px-4 py-2 text-sm font-semibold rounded-xl flex items-center gap-2 disabled:opacity-50">
+                        <span x-show="!wpLoading" x-text="wpForm.id ? 'Save Changes' : 'Create Package'"></span>
+                        <span x-show="wpLoading">Saving...</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Activity Modal -->
+    <div x-show="actModalOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-0" x-cloak>
+        <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" @click="actModalOpen = false"></div>
+        <div class="relative w-full max-w-sm transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
+            <form @submit.prevent="submitAct()" class="p-6">
+                <h3 class="text-xl font-bold text-slate-900 mb-5" x-text="actForm.id ? 'Edit Activity' : 'New Activity'"></h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Name</label>
+                        <input type="text" x-model="actForm.name" required class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none" placeholder="e.g. Target Market Analysis">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Description (Optional)</label>
+                        <textarea x-model="actForm.description" rows="3" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none" placeholder="What are we doing in this activity?"></textarea>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" @click="actModalOpen = false" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl">Cancel</button>
+                    <button type="submit" :disabled="!actForm.name.trim() || actLoading" class="btn-primary px-4 py-2 text-sm font-semibold rounded-xl flex items-center gap-2 disabled:opacity-50">
+                        <span x-show="!actLoading" x-text="actForm.id ? 'Save Changes' : 'Create Activity'"></span>
+                        <span x-show="actLoading">Saving...</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Real-time Toasts -->
+    <div class="fixed bottom-4 right-4 z-50 flex flex-col gap-3 pointer-events-none">
+        <template x-for="toast in realtimeToasts" :key="toast.id">
+            <div class="pointer-events-auto w-80 bg-slate-800 text-white rounded-xl p-4 shadow-xl flex items-start gap-3 transform transition-all translate-y-0 opacity-100"
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="transform translate-y-4 opacity-0"
+                 x-transition:enter-end="transform translate-y-0 opacity-100"
+                 x-transition:leave="transition ease-in duration-200"
+                 x-transition:leave-start="transform translate-y-0 opacity-100"
+                 x-transition:leave-end="transform translate-y-4 opacity-0">
+                <div class="mt-0.5 text-orange-400">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </div>
+                <div class="flex-1">
+                    <h4 class="text-sm font-bold text-white" x-text="toast.title"></h4>
+                    <p class="text-xs text-slate-300 mt-1" x-text="toast.message"></p>
+                </div>
+                <button @click="dismissToast(toast.id)" class="text-slate-400 hover:text-white transition-colors">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+        </template>
+    </div>
+</body>
+</html>

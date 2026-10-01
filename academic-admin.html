@@ -1,0 +1,2021 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sundeck Academic Hub | Tenant Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="/i18n.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #FAFAFA; color: #334155; }
+        
+        .card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
+        .btn-primary { background: #f97316; color: white; transition: all 0.2s; font-weight: 600; }
+        .btn-primary:hover { background: #ea580c; box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2); }
+        
+        [x-cloak] { display: none !important; }
+        
+        /* Thin gray lines for workflows */
+        .workflow-line { stroke: #cbd5e1; stroke-width: 1.5; fill: none; }
+        .workflow-line.active { stroke: #f97316; stroke-width: 2; }
+    </style>
+<style>.scrollbar-hide::-webkit-scrollbar { display: none; } .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }</style>
+</head>
+<body x-data="window.adminApp()" class="min-h-screen flex flex-col font-sans text-slate-700">
+
+    <!-- Top Navigation -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="/" aria-label="Academic Hub homepage" class="shrink-0">
+                    <img src="/assets/logo.png" alt="Sundeck Consulting" class="h-8" onerror="this.src='https://ui-avatars.com/api/?name=Sundeck&background=FF7A00&color=fff'">
+                </a>
+                <span class="text-slate-300">|</span>
+                <span class="text-sm font-medium text-slate-500 uppercase tracking-widest">Academic Hub</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div id="lang-toggle-container"></div>
+                <div x-show="mode !== 'login'" x-cloak class="flex items-center gap-3">
+                    <span class="text-xs font-semibold text-orange-600 bg-orange-50 px-2 py-1 rounded-full uppercase tracking-widest border border-orange-100" x-text="mode === 'dashboard' ? 'Tenant Admin' : 'System Admin'"></span>
+                    <button @click="logout" class="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors">Sign Out</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow max-w-6xl mx-auto w-full px-6 py-12">
+        
+        <!-- ==============================
+             LOGIN SCREEN
+             ============================== -->
+        <div x-show="mode === 'login'" x-cloak class="flex flex-col items-center justify-center mt-20">
+            <div class="text-center mb-10">
+                <h1 class="text-3xl font-bold text-slate-900 mb-2">System Admin Login</h1>
+                <p class="text-slate-500">Authorized personnel only</p>
+            </div>
+            
+            <div class="card w-full max-w-sm p-8">
+                <p x-show="sessionExpiredMessage" x-cloak class="mb-4 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">Your session expired. Sign in again to continue.</p>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Passcode</label>
+                <input type="password" x-model="passcode" class="w-full border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all text-center tracking-[0.5em] mb-6" placeholder="••••••••">
+                <button @click="login" class="btn-primary w-full rounded-lg py-3">Verify Identity</button>
+            </div>
+        </div>
+
+
+        <!-- ==============================
+             ORGANIZATIONS SCREEN
+             ============================== -->
+        <div x-show="mode === 'organizations'" x-cloak class="w-full">
+            
+            <div class="flex justify-between items-end mb-12 border-b border-slate-200 pb-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-slate-900">Sundeck Organizations</h1>
+                    <p class="text-slate-500 mt-2">Manage provisioned universities and schools.</p>
+                </div>
+                <div class="flex gap-4">
+                    <input type="text" x-model="newOrgName" placeholder="New Organization Name..." class="border border-slate-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none w-64">
+                    <button @click="createOrganization" class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">+ New Organization</button>
+                </div>
+            </div>
+
+            <!-- Organizational Tree Design -->
+            <div class="relative w-full py-8 flex flex-col items-center">
+                <!-- Top Sundeck Node -->
+                <div class="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center border-4 border-white shadow-md z-10 mb-8">
+                    <span class="text-white font-bold text-[10px] tracking-widest">ROOT</span>
+                </div>
+                
+                <!-- Tree connecting lines (CSS approach for fluid width) -->
+                <div class="absolute top-[80px] w-3/4 h-12 border-t-2 border-l-2 border-r-2 border-slate-200 rounded-t-xl -z-10" x-show="organizations.length > 1"></div>
+                <div class="absolute top-[80px] w-0.5 h-12 bg-slate-200 -z-10" x-show="organizations.length === 1"></div>
+
+                <div class="flex flex-wrap justify-center gap-12 mt-4 relative w-full">
+                    <template x-for="org in organizations" :key="org.id">
+                        <div class="flex flex-col items-center group">
+                            <!-- Connection drop line -->
+                            <div class="w-0.5 h-6 bg-slate-200 -mt-6 mb-2"></div>
+                            
+                            <!-- Org Node -->
+                            <div class="w-24 h-24 bg-white rounded-full border-2 border-slate-200 flex flex-col items-center justify-center shadow-sm group-hover:border-orange-500 group-hover:shadow-md transition-all cursor-pointer relative"
+                                 @click="assumeOrg(org)">
+                                <!-- Delete Button -->
+                                <button @click.stop="deleteOrganization(org.id)" class="absolute -top-1 -right-1 w-6 h-6 bg-red-100 hover:bg-red-500 text-red-500 hover:text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all border border-red-200 shadow-sm z-20" title="Delete Organization">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                                <svg class="w-6 h-6 text-slate-400 group-hover:text-orange-500 mb-1 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                                <span class="text-[10px] font-bold text-slate-700 text-center px-2 leading-tight group-hover:text-slate-900" x-text="org.name"></span>
+                            </div>
+                            
+                            <!-- Stats underneath -->
+                            <div class="mt-4 flex flex-col items-center text-[10px] text-slate-500">
+                                <div><span class="font-bold text-slate-700" x-text="org.projects_count || 0"></span> Projects</div>
+                                <div><span class="font-bold text-slate-700" x-text="org.teachers_count || 0"></span> Teachers</div>
+                                <button @click="assumeOrg(org)" class="mt-2 text-orange-600 font-medium hover:underline">Manage &rarr;</button>
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <div x-show="organizations.length === 0" class="text-slate-400 text-sm py-12">
+                        No organizations provisioned. Create one above.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        
+<!-- ==============================
+             DASHBOARD SCREEN (CIRCULAR WORKFLOW)
+             ============================== -->
+        <div x-show="mode === 'dashboard'" x-cloak class="scrollbar-hide w-full h-[calc(100vh-4rem)] flex flex-col overflow-x-hidden overflow-y-auto bg-[#FAFAFA]">
+            
+            <div class="text-center shrink-0 py-4 bg-white border-b border-slate-200 shadow-sm relative z-20">
+                <button @click="switchOrg" class="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors flex items-center justify-center mx-auto gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                    Switch University
+                </button>
+            </div>
+
+            <div class="flex-grow flex flex-col md:flex-row md:items-start gap-6 w-full max-w-[1800px] mx-auto relative px-8 py-4 overflow-visible">
+                
+                <!-- LEFT COLUMN: PROJECTS -->
+                <!-- Project Control Center -->
+<div x-show="activeTab === 'project-control'" x-cloak class="w-full min-w-0 flex-1 animate-fade-in">
+    <div class="flex items-center gap-3 mb-8">
+        <button @click="activeTab = 'projects'" class="text-slate-400 hover:text-slate-900 transition-colors">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+        </button>
+        <div>
+            <h2 class="text-2xl font-bold text-slate-900 uppercase tracking-wide" x-text="controlProject ? controlProject.name : ''"></h2>
+            <p class="text-sm font-medium text-slate-500 mt-1">Project Status & Workflow Oversight</p>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="card p-4 bg-white border-l-4 border-orange-500">
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Teams</div>
+            <div class="text-2xl font-bold text-slate-900 mt-1" x-text="controlProjectTeams.length"></div>
+        </div>
+        <div class="card p-4 bg-white border-l-4 border-blue-500">
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Tasks</div>
+            <div class="text-2xl font-bold text-slate-900 mt-1" x-text="controlProjectTasks.length"></div>
+        </div>
+        <div class="card p-4 bg-white border-l-4 border-green-500">
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Deliverables</div>
+            <div class="text-2xl font-bold text-slate-900 mt-1" x-text="controlProjectDeliverables.length"></div>
+        </div>
+        <div class="card p-4 bg-white border-l-4 border-red-500">
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Dependencies</div>
+            <div class="text-2xl font-bold text-slate-900 mt-1" x-text="controlProjectDependencies.length"></div>
+        </div>
+    </div>
+
+    <!-- The Project Workflow Circular Graph -->
+    <div class="card p-10 bg-slate-50 border border-slate-200 relative overflow-hidden flex items-center justify-center min-h-[500px]">
+        <div class="relative w-[440px] h-[440px]">
+            <!-- Defs for arrowhead (standalone SVG) -->
+            <svg class="absolute inset-0 w-0 h-0 pointer-events-none" viewBox="0 0 440 440">
+                <defs>
+                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#f6ad55" />
+                    </marker>
+                </defs>
+            </svg>
+
+            <!-- Lines from teams to center -->
+            <template x-for="(team, index) in controlProjectTeams" :key="team.id">
+                <svg class="absolute inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 440 440">
+                    <path :d="getWorkflowLinePath(index, controlProjectTeams.length, 220, 220, 160)" stroke="#e2e8f0" stroke-width="2" stroke-dasharray="4,4" />
+                </svg>
+            </template>
+            
+            <!-- Cross-team Dependencies (drawn as active curves) -->
+            <template x-for="dep in controlProjectDependencies" :key="dep.id">
+                <svg class="absolute inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 440 440">
+                    <path :d="getDependencyCurve(dep)" class="stroke-orange-400" stroke-width="2" fill="none" opacity="0.6" marker-end="url(#arrowhead)" />
+                </svg>
+            </template>
+
+            <!-- Center Node (The Project) -->
+            <div class="absolute top-[220px] left-[220px] -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-slate-900 rounded-full border-4 border-white shadow-xl flex flex-col items-center justify-center z-10 p-4">
+                <svg class="w-8 h-8 text-orange-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                <span class="text-xs font-bold text-white text-center leading-tight uppercase tracking-wider" x-text="controlProject ? controlProject.name : ''"></span>
+            </div>
+
+            <!-- Surrounding Nodes (Teams) -->
+            <template x-for="(team, index) in controlProjectTeams" :key="team.id">
+                <button @click="openTeamDetails(team)" 
+                        class="absolute -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-white rounded-full flex flex-col items-center justify-center transition-all z-20 border-2 shadow-md hover:scale-110"
+                        :class="controlSelectedTeam && controlSelectedTeam.id === team.id ? 'border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.3)]' : 'border-slate-200 hover:border-orange-300'"
+                        :style="getTeamNodeStyle(index, controlProjectTeams.length, 220, 220, 160)">
+                    
+                    <!-- Team Status Indicator -->
+                    <div class="absolute -top-1 -right-1 w-6 h-6 rounded-full text-white text-[10px] font-bold flex items-center justify-center z-30 shadow-sm border-2 border-white"
+                         :class="getTeamStatusColor(team.id)">
+                        <svg x-show="getTeamStatusColor(team.id) === 'bg-green-500'" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <svg x-show="getTeamStatusColor(team.id) === 'bg-orange-500'" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <svg x-show="getTeamStatusColor(team.id) === 'bg-red-500'" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </div>
+                    
+                    <span class="text-[11px] font-bold text-slate-900 text-center px-1 truncate w-full" x-text="team.name"></span>
+                    <span class="text-[9px] font-medium text-slate-500 mt-1" x-text="getTeamTaskCount(team.id) + ' tasks'"></span>
+                </button>
+            </template>
+        </div>
+    </div>
+
+    <!-- Team Details Panel (Shown when a team node is clicked) -->
+    <div x-show="controlSelectedTeam" x-cloak x-transition class="mt-8 border-t border-slate-200 pt-8">
+        <h3 class="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+            <span x-text="'Team: ' + (controlSelectedTeam ? controlSelectedTeam.name : '')"></span>
+            <span class="text-sm font-medium px-2 py-1 bg-slate-100 text-slate-600 rounded-lg">Tasks & Dependencies</span>
+        </h3>
+        
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-2 bg-slate-50">
+            <template x-if="controlSelectedTeam">
+                <iframe :src="'/teacher-portal?embed=1&token=' + token + '&team_id=' + controlSelectedTeam.id" class="w-full min-h-[850px] border-none rounded-lg bg-white shadow-inner"></iframe>
+            </template>
+        </div>
+    </div>
+</div>
+
+<div x-show="activeTab === 'projects'" x-cloak class="w-full min-w-0 flex-1">
+                    <div class="w-full" x-show="activeTab === 'projects'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 -translate-x-8" x-transition:enter-end="opacity-100 translate-x-0">
+<div>
+
+                <div class="grid grid-cols-1 gap-8">
+
+                    <!-- Create Project Form -->
+
+                    <div class="col-span-1">
+
+                        <div class="card p-6">
+
+                            <h2 class="text-lg font-bold text-slate-900 mb-4">Create Project</h2>
+
+                            <div class="space-y-4">
+
+                                <div>
+
+                                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Project Name</label>
+
+                                    <input type="text" x-model="newProjectName" class="w-full border border-slate-300 px-3 py-2 rounded focus:ring-2 focus:ring-orange-500 outline-none text-sm" placeholder="e.g. Science 101">
+
+                                </div>
+
+                                <div>
+
+                                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Description</label>
+
+                                    <textarea x-model="newProjectDescription" class="w-full border border-slate-300 px-3 py-2 rounded focus:ring-2 focus:ring-orange-500 outline-none text-sm h-24" placeholder="Optional notes..."></textarea>
+
+                                </div>
+
+                                <button @click="createOrgProject" class="btn-primary w-full py-2 rounded text-sm">Create Project</button>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- Project List -->
+
+                    <div class="col-span-1 space-y-4">
+
+                        <template x-for="proj in projects" :key="proj.id">
+
+                            <div class="card p-6 flex flex-col md:flex-row md:items-start justify-between gap-6">
+
+                                <div class="flex-grow">
+                                    <template x-if="editingProjectId === proj.id">
+                                        <div class="space-y-3">
+                                            <input type="text" x-model="projectEditName" class="w-full border border-slate-300 px-3 py-2 rounded text-sm" aria-label="Project name">
+                                            <textarea x-model="projectEditDescription" class="w-full border border-slate-300 px-3 py-2 rounded text-sm h-24" aria-label="Project description"></textarea>
+                                            <div class="flex gap-2">
+                                                <button @click="saveProject(proj.id)" class="btn-primary px-3 py-1.5 rounded text-sm">Save</button>
+                                                <button @click="editingProjectId = null" class="border border-slate-300 px-3 py-1.5 rounded text-sm">Cancel</button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <template x-if="editingProjectId !== proj.id">
+                                        <div>
+                                            <h3 class="text-lg font-bold text-slate-900" x-text="proj.name"></h3>
+                                            <p class="text-sm text-slate-500 mt-1" x-text="proj.description || 'No description'"></p>
+                                            <div class="flex gap-2 mt-3">
+                                                <button @click="openProjectControlCenter(proj)" class="btn-primary px-3 py-1.5 rounded text-sm font-semibold flex items-center gap-1 shadow-sm mr-2"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Control</button>
+<button @click="startProjectEdit(proj)" class="text-sm text-slate-600 hover:text-slate-900">Edit</button>
+                                                <button @click="deleteProject(proj.id)" class="text-sm text-red-600 hover:text-red-700">Delete</button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <div class="w-full md:w-64 bg-slate-50 rounded p-4 border border-slate-100">
+
+                                    <div class="text-xs font-semibold text-slate-600 mb-3">Assigned Teachers</div>
+
+                                    <div class="flex flex-wrap gap-2 mb-4">
+
+                                        <template x-for="t in proj.teachers || []" :key="t.id">
+
+                                            <div class="inline-flex items-center gap-2 bg-white border border-slate-200 px-2 py-1 rounded text-xs">
+
+                                                <span class="font-medium text-slate-700" x-text="t.name"></span>
+
+                                                <button @click="unassignTeacher(proj.id, t.id)" class="text-slate-400 hover:text-red-500">&times;</button>
+
+                                            </div>
+
+                                        </template>
+
+                                        <span x-show="!proj.teachers || proj.teachers.length === 0" class="text-xs text-slate-400 italic">None assigned</span>
+
+                                    </div>
+
+                                    <div class="flex gap-2">
+
+                                        <select x-model="proj.newTeacherId" class="flex-grow text-xs border border-slate-300 rounded px-2 py-1.5 outline-none bg-white">
+
+                                            <option value="">Select...</option>
+
+                                            <template x-for="t in teachers" :key="t.id">
+
+                                                <option :value="t.id" x-text="t.name"></option>
+
+                                            </template>
+
+                                        </select>
+
+                                        <button @click="assignTeacher(proj)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded text-xs font-semibold transition-colors">Add</button>
+
+                                    </div>
+
+                                </div>
+                            </template>
+
+                        <div x-show="projects.length === 0" class="text-center py-12 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl">
+
+                            No projects created yet.
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+                </div>
+            </div>
+
+            <!-- CENTER COLUMN: WORKFLOW DIAGRAM -->
+                <div class="order-first sticky top-0 z-30 flex w-full shrink-0 items-center justify-center bg-[#FAFAFA] py-4 md:top-0 md:w-[360px] md:self-start">
+                    
+                    <div class="relative w-[340px] h-[340px] mx-auto">
+                        <!-- Lines -->
+                        <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 340 340">
+                            <!-- Line to Projects (Left) -->
+                            <path d="M 170 170 L 40 170" :class="activeTab === 'projects' ? 'stroke-orange-500' : 'stroke-slate-200'" class="transition-colors duration-300" stroke-width="2" />
+                            <!-- Line to Teachers (Top) -->
+                            <path d="M 170 170 L 170 40" :class="activeTab === 'teachers' ? 'stroke-slate-800' : 'stroke-slate-200'" class="transition-colors duration-300" stroke-width="2" />
+                            <!-- Line to Teams (Right) -->
+                            <path d="M 170 170 L 300 170" :class="activeTab === 'teams' ? 'stroke-slate-800' : 'stroke-slate-200'" class="transition-colors duration-300" stroke-width="2" />
+                            <!-- Line to Project Resources (Bottom) -->
+                            <path d="M 170 170 L 170 300" :class="activeTab === 'resources' ? 'stroke-orange-500' : 'stroke-slate-200'" class="transition-colors duration-300" stroke-width="2" />
+                        </svg>
+
+                        <!-- Center Node (University) -->
+                        <div class="absolute top-[170px] left-[170px] -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-white rounded-full border border-slate-200 shadow-md flex flex-col items-center justify-center z-10">
+                            <svg class="w-6 h-6 text-slate-800 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 14l9-5-9-5-9 5 9 5z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" /></svg>
+                            <span class="text-[11px] font-bold text-slate-900 text-center px-3 leading-tight" x-text="selectedOrgName"></span>
+                            <span class="text-[9px] text-green-600 font-bold uppercase tracking-widest mt-1">Active</span>
+                        </div>
+
+                        <!-- Node: Projects (Left) -->
+                        <button @click="activeTab = 'projects'; fetchOrgProjects()" 
+                                class="absolute top-[170px] left-[40px] -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-white rounded-full flex flex-col items-center justify-center transition-all z-10"
+                                :class="activeTab === 'projects' ? 'border-2 border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.2)]' : 'border border-slate-200 hover:border-slate-300 hover:shadow-sm'">
+                            <div class="absolute -top-1 -left-1 w-5 h-5 bg-orange-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center z-20 shadow-sm border-2 border-white">1</div>
+                            <svg class="w-5 h-5 mb-1" :class="activeTab === 'projects' ? 'text-orange-500' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                            <span class="text-[10px] font-medium" :class="activeTab === 'projects' ? 'text-slate-900 font-bold' : 'text-slate-500'">Projects</span>
+                        </button>
+
+                        <!-- Node: Teachers (Top) -->
+                        <button @click="activeTab = 'teachers'; fetchTeachers()" 
+                                class="absolute top-[40px] left-[170px] -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-white rounded-full flex flex-col items-center justify-center transition-all z-10"
+                                :class="activeTab === 'teachers' ? 'border-2 border-slate-800 shadow-[0_0_15px_rgba(30,41,59,0.2)]' : 'border border-slate-200 hover:border-slate-300 hover:shadow-sm'">
+                            <div class="absolute -top-1 -right-1 w-5 h-5 bg-slate-800 text-white rounded-full text-[10px] font-bold flex items-center justify-center z-20 shadow-sm border-2 border-white">2</div>
+                            <svg class="w-5 h-5 mb-1" :class="activeTab === 'teachers' ? 'text-slate-800' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                            <span class="text-[10px] font-medium" :class="activeTab === 'teachers' ? 'text-slate-900 font-bold' : 'text-slate-500'">Teachers</span>
+                        </button>
+
+                        <!-- Node: Teams (Right) -->
+                        <button @click="activeTab = 'teams'; fetchTeams()" 
+                                class="absolute top-[170px] left-[300px] -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-white rounded-full flex flex-col items-center justify-center transition-all z-10"
+                                :class="activeTab === 'teams' ? 'border-2 border-slate-800 shadow-[0_0_15px_rgba(30,41,59,0.2)]' : 'border border-slate-200 hover:border-slate-300 hover:shadow-sm'">
+                            <div class="absolute -top-1 -right-1 w-5 h-5 bg-slate-800 text-white rounded-full text-[10px] font-bold flex items-center justify-center z-20 shadow-sm border-2 border-white">3</div>
+                            <svg class="w-5 h-5 mb-1" :class="activeTab === 'teams' ? 'text-slate-800' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                            <span class="text-[10px] font-medium" :class="activeTab === 'teams' ? 'text-slate-900 font-bold' : 'text-slate-500'">Teams</span>
+                        </button>
+
+                        <!-- Node: Project Resources (Bottom) -->
+                        <button @click="activeTab = 'resources'; fetchOrgProjects()" 
+                                class="absolute top-[300px] left-[170px] -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-white rounded-full flex flex-col items-center justify-center transition-all z-10"
+                                :class="activeTab === 'resources' ? 'border-2 border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.2)]' : 'border border-slate-200 hover:border-orange-300 hover:shadow-sm'">
+                            <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-orange-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center z-20 shadow-sm border-2 border-white">4</div>
+                            <svg class="w-5 h-5 mb-1" :class="activeTab === 'resources' ? 'text-orange-500' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M7 3.75h6l5 5v11.5H7a2 2 0 0 1-2-2v-12.5a2 2 0 0 1 2-2Z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M13 4v5h5M8 14h8m-8 3h8"/></svg>
+                            <span class="text-[9px] font-medium text-center leading-tight" :class="activeTab === 'resources' ? 'text-slate-900 font-bold' : 'text-slate-500'">Resources</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN: TEAMS & TEACHERS -->
+                <div x-show="activeTab === 'teams'" x-cloak class="w-full min-w-0 flex-1">
+                    <div class="w-full" x-show="activeTab === 'teams'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-x-8" x-transition:enter-end="opacity-100 translate-x-0">
+<div>
+
+                <div class="grid grid-cols-1 gap-8">
+
+                    
+
+                    <!-- Left Column: Filter & List -->
+
+                    <div class="col-span-1 space-y-6">
+
+                        <div>
+
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Filter by Project</label>
+
+                            <select x-model="selectedProjectFilter" @change="fetchTeams" class="w-full border border-slate-300 p-2.5 rounded focus:ring-2 focus:ring-orange-500 outline-none text-sm bg-white">
+
+                                <option value="">Select Project...</option>
+
+                                <template x-for="proj in projects" :key="proj.id">
+
+                                    <option :value="proj.id" x-text="proj.name"></option>
+
+                                </template>
+
+                            </select>
+
+                        </div>
+
+
+
+                        <div x-show="selectedProjectFilter" x-cloak class="card p-5">
+
+                            <h3 class="text-sm font-bold text-slate-900 mb-3">Create Team</h3>
+
+                            <div class="flex flex-col gap-3">
+
+                                <input type="text" x-model="newTeamName" class="w-full border border-slate-300 px-3 py-2 rounded text-sm focus:ring-2 focus:ring-orange-500 outline-none" placeholder="Team Name">
+
+                                <button @click="addTeam" class="btn-primary w-full py-2 rounded text-sm">Create</button>
+
+                            </div>
+
+                        </div>
+
+
+
+                        <div class="space-y-2">
+
+                            <template x-for="team in teams" :key="team.id">
+
+                                <div @click="selectTeam(team)" 
+
+                                     class="card p-4 cursor-pointer transition-colors border-l-4"
+
+                                     :class="selectedTeam && selectedTeam.id === team.id ? 'border-l-orange-500 bg-orange-50/30' : 'border-l-transparent hover:border-l-slate-300'">
+
+                                    <div class="font-semibold text-slate-900 text-sm" x-text="team.name"></div>
+
+                                </div>
+
+                            </template>
+
+                            <div x-show="selectedProjectFilter && teams.length === 0" class="text-xs text-slate-400 py-4 italic">
+
+                                No teams in this project.
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- Right Column: Selected Team Details -->
+
+                    <div class="col-span-1">
+
+                        <div x-show="selectedTeam" x-cloak class="card p-8">
+
+                            
+
+                            <div class="flex justify-between items-start mb-8 pb-6 border-b border-slate-100">
+
+                                <div>
+
+                                    <h2 class="text-xs font-semibold text-orange-600 uppercase tracking-widest mb-1">Selected Team</h2>
+
+                                    <h1 class="text-2xl font-bold text-slate-900" x-text="selectedTeam ? selectedTeam.name : ''"></h1>
+
+                                </div>
+
+                                <div class="flex flex-wrap gap-2">
+                                    <input type="text" x-model="selectedTeamNameEdit" class="border border-slate-300 px-3 py-1.5 rounded text-sm outline-none focus:ring-2 focus:ring-orange-500" aria-label="Team name">
+                                    <select x-model="selectedTeamProjectEdit" class="border border-slate-300 px-3 py-1.5 rounded text-sm bg-white" aria-label="Team project">
+                                        <template x-for="proj in projects" :key="proj.id">
+                                            <option :value="proj.id" x-text="proj.name"></option>
+                                        </template>
+                                    </select>
+                                    <button @click="renameTeam" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors">Save</button>
+                                    <button @click="deleteTeam" class="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors">Delete Team</button>
+                                </div>
+
+                            </div>
+
+
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+
+                                <!-- Students Section -->
+
+                                <div>
+
+                                    <h3 class="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+
+                                        <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+
+                                        Team Members
+
+                                    </h3>
+
+                                    
+
+                                    <div class="space-y-3 mb-6">
+
+                                        <template x-for="s in teamStudents" :key="s.id">
+
+                                            <div class="bg-slate-50 border border-slate-100 px-3 py-2 rounded text-sm">
+                                                <template x-if="editingStudentId === s.id">
+                                                    <div class="space-y-2">
+                                                        <input type="text" x-model="studentEditName" class="w-full border border-slate-300 px-2 py-1.5 rounded" aria-label="Student name">
+                                                        <input type="email" x-model="studentEditEmail" class="w-full border border-slate-300 px-2 py-1.5 rounded" aria-label="Student email">
+                                                        <div class="flex gap-3">
+                                                            <button @click="saveStudent(s.id)" class="text-green-700 hover:text-green-800 text-xs font-semibold">Save</button>
+                                                            <button @click="editingStudentId = null" class="text-slate-500 hover:text-slate-700 text-xs">Cancel</button>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                                <template x-if="editingStudentId !== s.id">
+                                                    <div class="flex flex-wrap justify-between items-center gap-2">
+                                                        <div>
+                                                            <div class="font-medium text-slate-800" x-text="s.name"></div>
+                                                            <div class="text-xs text-slate-500" x-text="s.email"></div>
+                                                        </div>
+                                                        <div class="flex gap-3">
+                                                            <button @click="startStudentEdit(s)" class="text-slate-500 hover:text-slate-800 text-xs">Edit</button>
+                                                            <button @click="deleteStudent(s.id)" class="text-red-600 hover:text-red-700 text-xs">Delete</button>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                                <div class="mt-3 grid gap-1 border-t border-slate-200 pt-2 text-[11px] text-slate-600">
+                                                    <div><span class="font-semibold text-slate-700">Privacy notice:</span> <span x-text="formatStudentConsent(s.id, 'privacy_notice')"></span></div>
+                                                    <div><span class="font-semibold text-slate-700">Marketing permission (work only; no identifying details):</span> <span x-text="formatStudentConsent(s.id, 'marketing_use')"></span></div>
+                                                </div>
+                                            </div>
+
+                                        </template>
+
+                                        <div x-show="teamStudents.length === 0" class="text-xs text-slate-400 italic">No members found.</div>
+
+                                    </div>
+
+
+
+                                    <div class="bg-slate-50 p-4 rounded border border-slate-100">
+
+                                        <h4 class="text-xs font-bold text-slate-700 mb-3 uppercase tracking-wider">Register Student</h4>
+
+                                        <div class="space-y-3">
+
+                                            <input type="text" x-model="studentName" placeholder="Full Name" class="w-full text-sm border border-slate-300 px-3 py-2 rounded outline-none focus:ring-1 focus:ring-orange-500">
+
+                                            <input type="email" x-model="studentEmail" placeholder="Email Address" class="w-full text-sm border border-slate-300 px-3 py-2 rounded outline-none focus:ring-1 focus:ring-orange-500">
+
+                                            <button @click="addStudent" class="w-full bg-slate-800 hover:bg-slate-900 text-white text-sm py-2 rounded font-medium">Add Member</button>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+
+
+                                <!-- Files Section -->
+
+                                <div>
+
+                                    <h3 class="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+
+                                        <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+
+                                        Deliverables
+
+                                    </h3>
+
+                                    
+
+                                    <div class="space-y-2">
+
+                                        <template x-for="f in teamFiles" :key="f.id">
+
+                                            <div class="flex justify-between items-center bg-slate-50 border border-slate-100 px-3 py-2 rounded gap-3">
+
+                                                <div class="text-sm text-blue-600 hover:underline cursor-pointer truncate mr-4 font-medium" x-text="f.file_name" @click="downloadFile(f.id)"></div>
+
+                                                <div class="text-[10px] text-slate-400 whitespace-nowrap" x-text="new Date(f.uploaded_at).toLocaleDateString()"></div>
+
+                                                <button @click.stop="deleteFile(f.id)" class="text-xs text-red-600 hover:text-red-700">Delete</button>
+
+                                            </div>
+
+                                        </template>
+
+                                        <div x-show="teamFiles.length === 0" class="text-xs text-slate-400 italic">No files submitted yet.</div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div x-show="!selectedTeam" class="h-full flex flex-col items-center justify-center text-slate-400 py-20 border-2 border-dashed border-slate-200 rounded-xl">
+
+                            <svg class="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
+
+                            <p class="text-sm">Select a team from the list to view details.</p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+                </div>
+                    </div>
+                    <div x-show="activeTab === 'teachers'" x-cloak class="w-full min-w-0 flex-1" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-x-8" x-transition:enter-end="opacity-100 translate-x-0">
+<div>
+
+                <div class="grid grid-cols-1 gap-8">
+
+                    
+
+                    <div class="col-span-1">
+
+                        <div class="card p-6">
+
+                            <h2 class="text-lg font-bold text-slate-900 mb-4">Add Teacher</h2>
+
+                            <div class="space-y-4">
+
+                                <div>
+
+                                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Teacher Name</label>
+
+                                    <input type="text" x-model="newTeacherName" class="w-full border border-slate-300 px-3 py-2 rounded focus:ring-2 focus:ring-orange-500 outline-none text-sm" placeholder="Dr. Jane Smith">
+
+                                </div>
+
+                                <div>
+
+                                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Email Address</label>
+
+                                    <input type="email" x-model="newTeacherEmail" class="w-full border border-slate-300 px-3 py-2 rounded focus:ring-2 focus:ring-orange-500 outline-none text-sm" placeholder="jane@university.edu">
+
+                                </div>
+
+                                <button @click="createTeacher" class="btn-primary w-full py-2 rounded text-sm">Provision Teacher</button>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="col-span-1">
+
+                        <div class="card overflow-hidden">
+
+                            <div class="bg-slate-50 border-b border-slate-200 px-6 py-4">
+
+                                <h3 class="font-bold text-slate-900 text-sm">Faculty Roster</h3>
+
+                            </div>
+
+                            <div class="divide-y divide-slate-100">
+
+                                <template x-for="t in teachers" :key="t.id">
+
+                                    <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
+                                        <div class="flex-grow">
+                                            <template x-if="editingTeacherId === t.id">
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    <input type="text" x-model="teacherEditName" class="border border-slate-300 px-2 py-1.5 rounded text-sm" aria-label="Teacher name">
+                                                    <input type="email" x-model="teacherEditEmail" class="border border-slate-300 px-2 py-1.5 rounded text-sm" aria-label="Teacher email">
+                                                    <div class="flex gap-3 sm:col-span-2">
+                                                        <button @click="saveTeacher(t.id)" class="text-green-700 hover:text-green-800 text-xs font-semibold">Save</button>
+                                                        <button @click="editingTeacherId = null" class="text-slate-500 hover:text-slate-700 text-xs">Cancel</button>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            <template x-if="editingTeacherId !== t.id">
+                                                <div>
+                                                    <div class="font-bold text-slate-800 text-sm" x-text="t.name"></div>
+                                                    <div class="text-xs text-slate-500 mt-1" x-text="t.email"></div>
+                                                                                                        <div class="flex gap-3 mt-2">
+                                                        <button @click="openAssignmentModal(t)" class="text-orange-600 hover:text-orange-700 text-xs">Assign Projects</button>
+                                                        <button @click="startTeacherEdit(t)" class="text-slate-500 hover:text-slate-800 text-xs">Edit</button>
+                                                        <button @click="deleteTeacher(t.id)" class="text-red-600 hover:text-red-700 text-xs">Delete</button>
+                                                    </div>
+                                                    
+                                                    <div class="mt-2 flex flex-wrap gap-1">
+                                                        <template x-for="p in t.projects" :key="p.id">
+                                                            <span class="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded border border-slate-200" x-text="p.name"></span>
+                                                        </template>
+                                                        <span x-show="!t.projects || t.projects.length === 0" class="text-[10px] text-slate-400 italic">No projects assigned</span>
+                                                    </div>
+                                                    
+                                                    <div class="mt-2 flex flex-col gap-1.5 text-[10px] text-slate-500 bg-slate-50 p-2 rounded border border-slate-100 max-w-fit">
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="font-semibold w-20 text-slate-600">Privacy Notice:</span>
+                                                            <span :class="t.privacy_status === 'Accepted' ? 'text-emerald-600 font-medium' : 'text-amber-600 font-medium'" x-text="t.privacy_status"></span>
+                                                            <template x-if="t.privacy_date">
+                                                                <span class="text-slate-400">
+                                                                    (v<span x-text="t.privacy_version"></span>) on <span x-text="new Date(t.privacy_date).toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'})"></span>
+                                                                </span>
+                                                            </template>
+                                                        </div>
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="font-semibold w-20 text-slate-600">Marketing:</span>
+                                                            <span :class="t.marketing_status === 'Granted' ? 'text-emerald-600 font-medium' : (t.marketing_status === 'Declined' ? 'text-red-600 font-medium' : 'text-amber-600 font-medium')" x-text="t.marketing_status"></span>
+                                                            <template x-if="t.marketing_date">
+                                                                <span class="text-slate-400">
+                                                                    (v<span x-text="t.marketing_version"></span>) on <span x-text="new Date(t.marketing_date).toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'})"></span>
+                                                                </span>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                </template>
+
+                                <div x-show="teachers.length === 0" class="px-6 py-8 text-center text-slate-400 text-sm">
+
+                                    No teachers provisioned yet.
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+                    </div>
+                </div>
+
+            <section x-show="activeTab === 'resources'" x-cloak class="w-full min-w-0 flex-1">
+                <div class="card p-6">
+                    <div class="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-orange-600">Shared with every team in a project</p>
+                            <h2 class="mt-1 text-xl font-bold text-slate-900">Project Resources</h2>
+                            <p class="mt-1 text-sm text-slate-500">Add briefs, templates, and reference files for all teams in the selected project.</p>
+                        </div>
+                        <div class="flex flex-col gap-2 sm:min-w-64">
+                            <label for="resource-project-select" class="text-xs font-semibold uppercase tracking-wider text-slate-500">Project</label>
+                            <select id="resource-project-select" x-model="resourceProjectId" @change="loadProjectResourceWorkspace" class="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-500">
+                                <option value="">Select a project...</option>
+                                <template x-for="proj in projects" :key="proj.id">
+                                    <option :value="proj.id" x-text="proj.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div x-show="resourceProjectId" x-cloak class="pt-5">
+                        <!-- Google Drive Style Header -->
+                        <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-200">
+                            <!-- Breadcrumbs -->
+                            <div class="flex items-center gap-2 text-sm">
+                                <button @click="resourceFolderId = ''" class="font-medium hover:underline" :class="!resourceFolderId ? 'text-slate-900 font-bold' : 'text-slate-500'">Project Root</button>
+                                <template x-if="resourceFolderId">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                                        <span class="font-bold text-slate-900" x-text="(resourceFolders.find(f => f.id === resourceFolderId) || {}).name"></span>
+                                    </div>
+                                </template>
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="flex items-center gap-3">
+                                <button @click="promptCreateFolder()" class="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition-colors">
+                                    <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
+                                    New Folder
+                                </button>
+                                
+                                <label class="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 shadow-sm cursor-pointer transition-colors">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                                    Upload File
+                                    <input type="file" class="hidden" @change="uploadProjectResource($event)">
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Error and Progress States -->
+                        <div x-show="resourceError" x-cloak class="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between">
+                            <span x-text="resourceError"></span>
+                            <button @click="resourceError = ''" class="text-red-500 hover:text-red-700">&times;</button>
+                        </div>
+                        <div x-show="resourceUploading" x-cloak class="mb-4 rounded border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800 flex items-center gap-2">
+                            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            Uploading...
+                        </div>
+
+                        <!-- Grid View: Folders and Files -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            
+                            <!-- Folders (Only show when at Project Root) -->
+                            <template x-for="folder in resourceFolders" :key="folder.id">
+                                <div x-show="!resourceFolderId" class="group relative flex flex-col p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-md transition-all cursor-pointer" @click="resourceFolderId = folder.id">
+                                        <div class="flex items-start justify-between">
+                                            <svg class="w-8 h-8 text-slate-400 mb-3" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" /></svg>
+                                            
+                                            <!-- Context Menu Trigger -->
+                                            <button @click.stop="activeDropdown = activeDropdown === 'folder-'+folder.id ? null : 'folder-'+folder.id" class="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+                                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
+                                            </button>
+                                            
+                                            <!-- Context Menu Dropdown -->
+                                            <div x-show="activeDropdown === 'folder-'+folder.id" @click.away="activeDropdown = null" x-cloak class="absolute top-10 right-2 w-32 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden z-10 text-sm">
+                                                <button @click.stop="promptRenameFolder(folder); activeDropdown = null" class="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700">Rename</button>
+                                                <button @click.stop="promptDeleteFolder(folder); activeDropdown = null" class="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 border-t border-slate-100">Delete</button>
+                                            </div>
+                                        </div>
+                                        <h4 class="font-medium text-slate-900 truncate" x-text="folder.name"></h4>
+                                        <span class="text-[11px] text-slate-400 mt-1" x-text="new Date(folder.created_at).toLocaleDateString()"></span>
+                                    </div>
+                                </template>
+
+                            <!-- Files (Filtered by current folder) -->
+                            <template x-for="resource in filteredProjectResources()" :key="resource.id">
+                                <div class="group relative flex flex-col p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-md transition-all">
+                                    <div class="flex items-start justify-between">
+                                        <!-- File Icon based on type -->
+                                        <div class="mb-3 text-orange-500 bg-orange-50 p-2 rounded-lg">
+                                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                        </div>
+                                        
+                                        <!-- Context Menu Trigger -->
+                                        <button @click.stop="activeDropdown = activeDropdown === 'file-'+resource.id ? null : 'file-'+resource.id" class="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+                                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
+                                        </button>
+                                        
+                                        <!-- Context Menu Dropdown -->
+                                        <div x-show="activeDropdown === 'file-'+resource.id" @click.away="activeDropdown = null" x-cloak class="absolute top-10 right-2 w-32 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden z-10 text-sm">
+                                            <button @click.stop="downloadProjectResource(resource); activeDropdown = null" class="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700">Download</button>
+                                            <button @click.stop="promptDeleteResource(resource); activeDropdown = null" class="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 border-t border-slate-100">Delete</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <h4 class="font-medium text-slate-900 truncate" :title="resource.file_name" x-text="resource.file_name"></h4>
+                                    <span class="text-[11px] text-slate-400 mt-1" x-text="formatResourceDetails(resource)"></span>
+                                    
+                                    <!-- Comments Toggle -->
+                                    <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                                        <button @click="toggleResourceComments(resource)" class="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                            Comments
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        
+                        <!-- Empty State -->
+                        <div x-show="!resourceLoading && (!resourceFolderId && resourceFolders.length === 0 && filteredProjectResources().length === 0) || (resourceFolderId && filteredProjectResources().length === 0)" class="mt-8 rounded-xl border-2 border-dashed border-slate-200 px-6 py-12 flex flex-col items-center justify-center text-center">
+                            <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                                <svg class="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" /></svg>
+                            </div>
+                            <h3 class="font-semibold text-slate-800 text-lg">This folder is empty</h3>
+                            <p class="mt-1 text-sm text-slate-500 max-w-sm">Upload briefs, templates, and reference files to share them with all teams in this project.</p>
+                        </div>
+
+                        <!-- Modern Folder Modal -->
+                        <div x-show="folderModalOpen" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+                            <div @click.away="!folderModalLoading && (folderModalOpen = false)" class="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+                                <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                                    <h3 class="font-bold text-lg text-slate-900" x-text="folderModalMode === 'create' ? 'Create New Folder' : 'Rename Folder'"></h3>
+                                    <button @click="folderModalOpen = false" type="button" class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100">
+                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+                                <form @submit.prevent="submitFolderModal()" class="px-6 py-5 bg-slate-50/50">
+                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Folder Name</label>
+                                    <input type="text" x-model="folderModalInput" maxlength="80" placeholder="e.g. Week 1 Materials" class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all shadow-sm" x-ref="folderInput" :disabled="folderModalLoading">
+                                    
+                                    <div class="mt-6 flex items-center justify-end gap-3">
+                                        <button type="button" @click="folderModalOpen = false" class="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 transition-colors" :disabled="folderModalLoading">Cancel</button>
+                                        <button type="submit" class="bg-slate-900 hover:bg-slate-800 text-white rounded-lg px-5 py-2 text-sm font-semibold shadow-sm transition-colors disabled:opacity-70 flex items-center gap-2" :disabled="!folderModalInput.trim() || folderModalLoading">
+                                            <span x-show="folderModalLoading" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                            <span x-text="folderModalMode === 'create' ? 'Create' : 'Save'"></span>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Modern Delete Confirmation Modal -->
+                        <div x-show="deleteModalOpen" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+                            <div @click.away="!deleteModalLoading && (deleteModalOpen = false)" class="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+                                <div class="px-6 py-5 border-b border-red-100 bg-red-50/50 flex items-center justify-between">
+                                    <div class="flex items-center gap-2 text-red-700">
+                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                        <h3 class="font-bold text-lg">Confirm Deletion</h3>
+                                    </div>
+                                    <button @click="deleteModalOpen = false" type="button" class="text-red-400 hover:text-red-600 transition-colors p-1 rounded-lg hover:bg-red-100">
+                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+                                <div class="px-6 py-5 bg-white">
+                                    <p class="text-sm text-slate-600 leading-relaxed mb-6">
+                                        Are you sure you want to delete <span class="font-bold text-slate-900" x-text="deleteModalTarget ? (deleteModalTarget.name || deleteModalTarget.file_name) : ''"></span><span x-show="deleteModalTargetType === 'folder'"> and ALL of its contents</span>? 
+                                        <br><br><span class="text-red-600 font-medium">This action cannot be undone.</span>
+                                    </p>
+                                    
+                                    <div class="flex items-center justify-end gap-3">
+                                        <button type="button" @click="deleteModalOpen = false" class="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 transition-colors" :disabled="deleteModalLoading">Cancel</button>
+                                        <button type="button" @click="executeDelete()" class="bg-red-600 hover:bg-red-700 text-white rounded-lg px-5 py-2 text-sm font-semibold shadow-sm transition-colors disabled:opacity-70 flex items-center gap-2" :disabled="deleteModalLoading">
+                                            <span x-show="deleteModalLoading" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                            <span>Delete Permanently</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Comments Modal/Drawer (Overlay) -->
+                        <template x-for="resource in filteredProjectResources()" :key="'comments-'+resource.id">
+                            <div x-show="openResourceCommentsId === resource.id" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+                                <div @click.away="openResourceCommentsId = null" class="w-full max-w-md bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden max-h-[80vh]">
+                                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                                        <h3 class="font-bold text-slate-900 truncate pr-4">Comments: <span class="font-normal text-slate-600" x-text="resource.file_name"></span></h3>
+                                        <button @click="openResourceCommentsId = null" class="text-slate-400 hover:text-slate-600 p-1 rounded hover:bg-slate-200 transition-colors">
+                                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </div>
+                                    <div class="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/50">
+                                        <template x-for="comment in (resourceComments[resource.id] || [])" :key="comment.id">
+                                            <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+                                                <div class="flex items-baseline justify-between gap-3 mb-1.5">
+                                                    <span class="text-xs font-bold text-slate-800" x-text="comment.author_name"></span>
+                                                    <time class="text-[10px] font-medium text-slate-400" x-text="new Date(comment.created_at).toLocaleString()"></time>
+                                                </div>
+                                                <p class="whitespace-pre-wrap text-sm text-slate-700 leading-relaxed" x-text="comment.body"></p>
+                                            </div>
+                                        </template>
+                                        <div x-show="(resourceComments[resource.id] || []).length === 0" class="text-center py-8">
+                                            <p class="text-sm text-slate-500">No comments yet. Be the first to share your thoughts!</p>
+                                        </div>
+                                    </div>
+                                    <form class="p-4 border-t border-slate-100 bg-white flex gap-3" @submit.prevent="postResourceComment(resource)">
+                                        <input type="text" maxlength="3000" x-model="resourceCommentDrafts[resource.id]" placeholder="Write a comment..." class="flex-1 rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all">
+                                        <button type="submit" :disabled="!resourceCommentDrafts[resource.id]?.trim()" class="bg-slate-900 hover:bg-slate-800 text-white rounded-lg px-4 py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Post</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div x-show="projects.length === 0" class="py-10 text-center text-sm text-slate-500">Create a project before adding shared resources.</div>
+                </div>
+            </section>
+            </div>
+            
+        </div>
+
+</div>
+
+<div x-show="sessionWarning" x-cloak role="dialog" aria-modal="true" aria-labelledby="session-warning-title" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 p-4">
+    <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <h2 id="session-warning-title" class="text-lg font-bold text-slate-900">Session expiring soon</h2>
+        <p class="mt-2 text-sm text-slate-600">For your security, you will be signed out in <span class="font-semibold tabular-nums" x-text="formatSessionCountdown()"></span>.</p>
+        <div class="mt-6 flex justify-end gap-3">
+            <button @click="logout()" class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700">Sign out</button>
+            <button @click="extendSession()" class="btn-primary rounded px-4 py-2 text-sm">Stay signed in</button>
+        </div>
+    </div>
+</div>
+
+<script>
+        function startActivitySession(app, getToken, idleSeconds, onExpire) {
+            let lastActivityAt = Date.now();
+            let lastHeartbeatAt = 0;
+            let timerId;
+            let expired = false;
+            const tokens = () => {
+                const token = getToken();
+                return (Array.isArray(token) ? token : [token]).filter(Boolean);
+            };
+            const tokenExpiry = () => {
+                try {
+                    return Math.min(...tokens().map(token => {
+                        const segment = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                        const payload = JSON.parse(atob(segment + '='.repeat((4 - segment.length % 4) % 4)));
+                        return payload.exp * 1000;
+                    }));
+                } catch {
+                    return Date.now();
+                }
+            };
+            const heartbeat = async () => {
+                const activeTokens = tokens();
+                if (!activeTokens.length) return;
+                lastHeartbeatAt = Date.now();
+                try {
+                    for (const token of activeTokens) {
+                        const response = await fetch('http://127.0.0.1:5001/api/auth/session/activity', {
+                            method: 'POST',
+                            headers: {'Authorization': 'Bearer ' + token}
+                        });
+                        if (response.status === 401 && !expired) {
+                            expired = true;
+                            onExpire();
+                            return;
+                        }
+                    }
+                } catch {}
+            };
+            const markActivity = () => {
+                if (expired) return;
+                lastActivityAt = Date.now();
+                app.sessionWarning = false;
+                if (Date.now() - lastHeartbeatAt >= 60000) heartbeat();
+            };
+            const tick = () => {
+                if (expired) return;
+                const now = Date.now();
+                const remaining = Math.min(idleSeconds * 1000 - (now - lastActivityAt), tokenExpiry() - now);
+                app.sessionSecondsLeft = Math.max(0, Math.ceil(remaining / 1000));
+                app.sessionWarning = remaining <= 5 * 60 * 1000;
+                if (remaining <= 0) {
+                    expired = true;
+                    onExpire();
+                }
+            };
+            ['keydown', 'pointerdown', 'pointermove', 'touchstart', 'scroll'].forEach(eventName => document.addEventListener(eventName, markActivity, {passive: true}));
+            heartbeat();
+            timerId = window.setInterval(tick, 1000);
+            return {
+                stop() {
+                    expired = true;
+                    window.clearInterval(timerId);
+                    ['keydown', 'pointerdown', 'pointermove', 'touchstart', 'scroll'].forEach(eventName => document.removeEventListener(eventName, markActivity));
+                },
+                extend: async () => {
+                    markActivity();
+                    await heartbeat();
+                }
+            };
+        }
+
+        window.adminApp = function adminApp() {
+            return {
+                passcode: '',
+                superToken: localStorage.getItem('superadmin_token') || '',
+                token: localStorage.getItem('admin_token') || '',
+                mode: localStorage.getItem('admin_token') ? 'dashboard' : (localStorage.getItem('superadmin_token') ? 'organizations' : 'login'),
+                selectedOrgName: localStorage.getItem('selected_org_name') || '',
+                activeTab: '',
+                sessionWarning: false,
+                sessionExpiredMessage: false,
+                sessionSecondsLeft: 0,
+                sessionMonitor: null,
+                organizations: [],
+                newOrgName: '',
+                newOrgLogo: '',
+                projects: [],
+                controlProject: null,
+                controlProjectTeams: [],
+                controlProjectTasks: [],
+                controlProjectDeliverables: [],
+                controlProjectDependencies: [],
+                controlSelectedTeam: null,
+                resourceProjectId: '',
+                resourceFolderId: '',
+                activeDropdown: null,
+                folderModalOpen: false,
+                folderModalMode: 'create',
+                folderModalTarget: null,
+                folderModalInput: '',
+                folderModalLoading: false,
+                deleteModalOpen: false,
+                deleteModalTargetType: '',
+                deleteModalTarget: null,
+                deleteModalLoading: false,
+                resourceFolders: [],
+                newResourceFolderName: '',
+                projectResources: [],
+                resourceComments: {},
+                resourceCommentDrafts: {},
+                openResourceCommentsId: null,
+                resourceLoading: false,
+                resourceUploading: false,
+                resourceError: '',
+                newProjectName: '',
+                newProjectDescription: '',
+                editingProjectId: null,
+                projectEditName: '',
+                projectEditDescription: '',
+                selectedProjectFilter: '',
+                newTeamProjectId: '',
+                teams: [],
+                newTeamName: '',
+                teachers: [],
+                newTeacherName: '',
+                newTeacherEmail: '',
+                editingTeacherId: null,
+                teacherEditName: '',
+                teacherEditEmail: '',
+                
+                selectedTeam: null,
+                selectedTeamNameEdit: '',
+                selectedTeamProjectEdit: '',
+                teamStudents: [],
+                teamFiles: [],
+                studentConsentRecords: [],
+
+                studentName: '',
+                studentEmail: '',
+                editingStudentId: null,
+                studentEditName: '',
+                studentEditEmail: '',
+                cookieConsent: localStorage.getItem('gdpr_consent') !== 'true',
+                
+                init() {
+                    if (this.token || this.superToken) this.startSessionMonitor();
+                    if (this.mode === 'dashboard') {
+                        if (!['projects', 'teachers', 'teams', 'resources', 'project-control'].includes(this.activeTab)) this.activeTab = 'projects';
+                        this.fetchOrgProjects();
+                        this.fetchTeams();
+                        this.fetchTeachers();
+                    } else if (this.mode === 'organizations') {
+                        this.fetchOrganizations();
+                    }
+                },
+
+                async login() {
+                    const res = await fetch('http://127.0.0.1:5001/api/admin/auth/login', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ passcode: this.passcode })
+                    });
+                    const data = await res.json();
+                    if(data.error) alert(data.error);
+                    else {
+                        this.superToken = data.token;
+                        localStorage.setItem('superadmin_token', data.token);
+                        this.mode = 'organizations';
+                        this.startSessionMonitor();
+                        this.fetchOrganizations();
+                    }
+                },
+
+                async assumeOrg(org) {
+                    const res = await fetch('http://127.0.0.1:5001/api/admin/auth/assume', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.superToken},
+                        body: JSON.stringify({ organization_id: org.id })
+                    });
+                    const data = await res.json();
+                    if(data.error) alert(data.error);
+                    else {
+                        this.token = data.token;
+                        localStorage.setItem('admin_token', data.token);
+                        this.selectedOrgName = org.name;
+                        localStorage.setItem('selected_org_name', org.name);
+                        this.mode = 'dashboard';
+                        this.activeTab = 'projects';
+                        this.startSessionMonitor();
+                        this.fetchOrgProjects();
+                        this.fetchTeams();
+                        this.fetchTeachers();
+                    }
+                },
+                
+                switchOrg() {
+                    this.revokeSession(this.token);
+                    this.token = '';
+                    localStorage.removeItem('admin_token');
+                    this.mode = 'organizations';
+                    this.startSessionMonitor();
+                    this.fetchOrganizations();
+                },
+
+                startSessionMonitor() {
+                    if (this.sessionMonitor) this.sessionMonitor.stop();
+                    this.sessionMonitor = startActivitySession(this, () => this.mode === 'dashboard' ? [this.token, this.superToken] : [this.superToken || this.token], 30 * 60, () => this.logout(true));
+                },
+
+                formatSessionCountdown() {
+                    const minutes = Math.floor(this.sessionSecondsLeft / 60).toString().padStart(2, '0');
+                    const seconds = (this.sessionSecondsLeft % 60).toString().padStart(2, '0');
+                    return `${minutes}:${seconds}`;
+                },
+
+                async extendSession() {
+                    if (this.sessionMonitor) await this.sessionMonitor.extend();
+                },
+
+                async revokeSession(token) {
+                    if (!token) return;
+                    try {
+                        await fetch('http://127.0.0.1:5001/api/auth/session/logout', {
+                            method: 'POST',
+                            headers: {'Authorization': 'Bearer ' + token}
+                        });
+                    } catch {}
+                },
+
+                
+                async openProjectControlCenter(project) {
+                    this.controlProject = project;
+                    this.activeTab = 'project-control';
+                    this.controlSelectedTeam = null;
+                    
+                    // Fetch all data for the project
+                    const projectId = project.id;
+                    const headers = { 'Authorization': 'Bearer ' + this.token };
+                    
+                    try {
+                        const [teamsRes, tasksRes, depsRes, delRes] = await Promise.all([
+                            fetch(`http://127.0.0.1:5001/api/admin/students/teams?project_id=${projectId}`, { headers }),
+                            fetch(`http://127.0.0.1:5001/api/admin/projects/${projectId}/tasks`, { headers }),
+                            fetch(`http://127.0.0.1:5001/api/admin/projects/${projectId}/dependencies`, { headers }),
+                            fetch(`http://127.0.0.1:5001/api/admin/projects/${projectId}/deliverables`, { headers })
+                        ]);
+                        
+                        if(teamsRes.ok) this.controlProjectTeams = await teamsRes.json();
+                        if(tasksRes.ok) this.controlProjectTasks = (await tasksRes.json()).tasks;
+                        if(depsRes.ok) this.controlProjectDependencies = (await depsRes.json()).dependencies;
+                        if(delRes.ok) this.controlProjectDeliverables = (await delRes.json()).deliverables;
+                    } catch (e) {
+                        console.error('Error fetching project control data:', e);
+                    }
+                },
+                
+                openTeamDetails(team) {
+                    this.controlSelectedTeam = team;
+                },
+                
+                getTeamTasks(teamId) {
+                    return this.controlProjectTasks.filter(t => t.team_id === teamId);
+                },
+                
+                getTeamTaskCount(teamId) {
+                    return this.getTeamTasks(teamId).length;
+                },
+                
+                getTeamStatusColor(teamId) {
+                    const tasks = this.getTeamTasks(teamId);
+                    if (tasks.some(t => t.status === 'Blocked')) return 'bg-red-500';
+                    if (tasks.some(t => t.status === 'In Progress')) return 'bg-orange-500';
+                    if (tasks.length > 0 && tasks.every(t => t.status === 'Completed')) return 'bg-green-500';
+                    return 'bg-slate-300'; // Not Started or no tasks
+                },
+                
+                getOutgoingDepsForTask(taskId) {
+                    return this.controlProjectDependencies
+                        .filter(d => d.from_task_id === taskId)
+                        .map(d => {
+                            const toTask = this.controlProjectTasks.find(t => t.id === d.to_task_id);
+                            const toTeam = toTask ? this.controlProjectTeams.find(tm => tm.id === toTask.team_id) : null;
+                            return {
+                                ...d,
+                                to_task_name: toTask ? toTask.name : 'Unknown',
+                                to_team_name: toTeam ? toTeam.name : 'Unknown'
+                            };
+                        });
+                },
+                
+                getIncomingDepsForTask(taskId) {
+                    return this.controlProjectDependencies
+                        .filter(d => d.to_task_id === taskId)
+                        .map(d => {
+                            const fromTask = this.controlProjectTasks.find(t => t.id === d.from_task_id);
+                            const fromTeam = fromTask ? this.controlProjectTeams.find(tm => tm.id === fromTask.team_id) : null;
+                            return {
+                                ...d,
+                                from_task_name: fromTask ? fromTask.name : 'Unknown',
+                                from_team_name: fromTeam ? fromTeam.name : 'Unknown'
+                            };
+                        });
+                },
+                
+                // SVG / Circular Geometry Helpers
+                getNodeCoords(index, total, cx, cy, radius) {
+                    // Start at top (270 degrees)
+                    const angle = (Math.PI * 2 * index) / total - Math.PI / 2;
+                    return {
+                        x: cx + radius * Math.cos(angle),
+                        y: cy + radius * Math.sin(angle)
+                    };
+                },
+                
+                getWorkflowLinePath(index, total, cx, cy, radius) {
+                    const node = this.getNodeCoords(index, total, cx, cy, radius);
+                    return `M ${cx} ${cy} L ${node.x} ${node.y}`;
+                },
+                
+                getTeamNodeStyle(index, total, cx, cy, radius) {
+                    const node = this.getNodeCoords(index, total, cx, cy, radius);
+                    return `top: ${node.y}px; left: ${node.x}px;`;
+                },
+                
+                getDependencyCurve(dep) {
+                    // Find from_team and to_team indexes
+                    const fromTask = this.controlProjectTasks.find(t => t.id === dep.from_task_id);
+                    const toTask = this.controlProjectTasks.find(t => t.id === dep.to_task_id);
+                    
+                    if (!fromTask || !toTask) return '';
+                    if (fromTask.team_id === toTask.team_id) return ''; // Internal team dep, don't draw on macro graph
+                    
+                    const fromIndex = this.controlProjectTeams.findIndex(t => t.id === fromTask.team_id);
+                    const toIndex = this.controlProjectTeams.findIndex(t => t.id === toTask.team_id);
+                    
+                    if (fromIndex === -1 || toIndex === -1) return '';
+                    
+                    const total = this.controlProjectTeams.length;
+                    const n1 = this.getNodeCoords(fromIndex, total, 220, 220, 160);
+                    const n2 = this.getNodeCoords(toIndex, total, 220, 220, 160);
+                    
+                    // Simple quadratic curve bowing towards center
+                    return `M ${n1.x} ${n1.y} Q 220 220 ${n2.x} ${n2.y}`;
+                },
+
+                async fetchOrgProjects() {
+                    const res = await fetch('http://127.0.0.1:5001/api/admin/projects', {
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    if (res.status === 401) return this.logout();
+                    this.projects = await res.json();
+                    if (this.resourceProjectId && !this.projects.some(project => String(project.id) === String(this.resourceProjectId))) {
+                        this.resourceProjectId = '';
+                        this.projectResources = [];
+                    }
+                },
+
+                async fetchProjectResources() {
+                    this.resourceError = '';
+                    this.projectResources = [];
+                    if (!this.resourceProjectId) return;
+                    this.resourceLoading = true;
+                    try {
+                        const res = await fetch(`http://127.0.0.1:5001/api/admin/projects/${encodeURIComponent(this.resourceProjectId)}/resources`, {
+                            headers: {'Authorization': 'Bearer ' + this.token}
+                        });
+                        if (res.status === 401) return this.logout();
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || 'Unable to load project resources');
+                        this.projectResources = data;
+                    } catch (error) {
+                        this.resourceError = error.message || 'Unable to load project resources';
+                    } finally {
+                        this.resourceLoading = false;
+                    }
+                },
+
+                async loadProjectResourceWorkspace() {
+                    this.resourceFolderId = '';
+                    this.projectResources = [];
+                    this.resourceFolders = [];
+                    if (!this.resourceProjectId) return;
+                    await Promise.all([this.fetchProjectFolders(), this.fetchProjectResources()]);
+                },
+
+                async fetchProjectFolders() {
+                    if (!this.resourceProjectId) return;
+                    const res = await fetch(`http://127.0.0.1:5001/api/admin/projects/${encodeURIComponent(this.resourceProjectId)}/resource-folders`, {
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    if (res.status === 401) return this.logout();
+                    const data = await res.json();
+                    if (!res.ok) {
+                        this.resourceError = data.error || 'Unable to load folders';
+                        return;
+                    }
+                    this.resourceFolders = data;
+                },
+
+                promptCreateFolder() {
+                    this.folderModalMode = 'create';
+                    this.folderModalInput = '';
+                    this.folderModalTarget = null;
+                    this.folderModalOpen = true;
+                    setTimeout(() => { if (this.$refs.folderInput) this.$refs.folderInput.focus() }, 100);
+                },
+                promptRenameFolder(folder) {
+                    this.folderModalMode = 'rename';
+                    this.folderModalInput = folder.name;
+                    this.folderModalTarget = folder;
+                    this.folderModalOpen = true;
+                    setTimeout(() => { if (this.$refs.folderInput) this.$refs.folderInput.focus() }, 100);
+                },
+                async submitFolderModal() {
+                    const name = this.folderModalInput.trim();
+                    if (!name) return;
+                    
+                    this.folderModalLoading = true;
+                    try {
+                        if (this.folderModalMode === 'create') {
+                            this.newResourceFolderName = name;
+                            await this.createProjectResourceFolder();
+                        } else if (this.folderModalMode === 'rename' && this.folderModalTarget) {
+                            if (name !== this.folderModalTarget.name) {
+                                const res = await fetch(`http://127.0.0.1:5001/api/admin/projects/${encodeURIComponent(this.resourceProjectId)}/resource-folders/${encodeURIComponent(this.folderModalTarget.id)}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token },
+                                    body: JSON.stringify({ name: name })
+                                });
+                                const data = await res.json();
+                                if (data.error) throw new Error(data.error);
+                                await this.fetchProjectFolders();
+                            }
+                        }
+                        this.folderModalOpen = false;
+                    } catch (err) {
+                        alert(err.message || 'Error saving folder');
+                    } finally {
+                        this.folderModalLoading = false;
+                    }
+                },
+                promptDeleteFolder(folder) {
+                    this.deleteModalTargetType = 'folder';
+                    this.deleteModalTarget = folder;
+                    this.deleteModalOpen = true;
+                },
+                promptDeleteResource(resource) {
+                    this.deleteModalTargetType = 'resource';
+                    this.deleteModalTarget = resource;
+                    this.deleteModalOpen = true;
+                },
+                async executeDelete() {
+                    this.deleteModalLoading = true;
+                    try {
+                        if (this.deleteModalTargetType === 'folder') {
+                            const res = await fetch(`http://127.0.0.1:5001/api/admin/projects/${encodeURIComponent(this.resourceProjectId)}/resource-folders/${encodeURIComponent(this.deleteModalTarget.id)}`, {
+                                method: 'DELETE',
+                                headers: { 'Authorization': 'Bearer ' + this.token }
+                            });
+                            const data = await res.json();
+                            if (data.error) throw new Error(data.error);
+                            
+                            if (this.resourceFolderId === this.deleteModalTarget.id) this.resourceFolderId = '';
+                            await Promise.all([this.fetchProjectFolders(), this.fetchProjectResources()]);
+                        } else if (this.deleteModalTargetType === 'resource') {
+                            const res = await fetch(`http://127.0.0.1:5001/api/admin/projects/${encodeURIComponent(this.deleteModalTarget.project_id)}/resources/${encodeURIComponent(this.deleteModalTarget.id)}`, {
+                                method: 'DELETE',
+                                headers: { 'Authorization': 'Bearer ' + this.token }
+                            });
+                            const data = await res.json();
+                            if (data.error) throw new Error(data.error);
+                            await this.fetchProjectResources();
+                        }
+                        this.deleteModalOpen = false;
+                    } catch (err) {
+                        alert(err.message || 'Error deleting item');
+                    } finally {
+                        this.deleteModalLoading = false;
+                    }
+                },
+                async createProjectResourceFolder() {
+                    const name = this.newResourceFolderName.trim();
+                    if (!name || !this.resourceProjectId) return;
+                    const res = await fetch(`http://127.0.0.1:5001/api/admin/projects/${encodeURIComponent(this.resourceProjectId)}/resource-folders`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token},
+                        body: JSON.stringify({name})
+                    });
+                    const data = await res.json();
+                    if (res.status === 401) return this.logout();
+                    if (!res.ok) return this.resourceError = data.error || 'Unable to create folder';
+                    this.newResourceFolderName = '';
+                    await this.fetchProjectFolders();
+                    this.resourceFolderId = data.folder.id;
+                },
+
+                filteredProjectResources() {
+                    return this.projectResources.filter(resource => (resource.folder_id || '') === this.resourceFolderId);
+                },
+
+                async uploadProjectResource(event) {
+                    const file = event.target.files?.[0];
+                    event.target.value = '';
+                    if (!file || !this.resourceProjectId || this.resourceUploading) return;
+                    this.resourceUploading = true;
+                    this.resourceError = '';
+                    const form = new FormData();
+                    form.append('file', file);
+                    if (this.resourceFolderId) form.append('folder_id', this.resourceFolderId);
+                    try {
+                        const res = await fetch(`http://127.0.0.1:5001/api/admin/projects/${encodeURIComponent(this.resourceProjectId)}/resources`, {
+                            method: 'POST',
+                            headers: {'Authorization': 'Bearer ' + this.token},
+                            body: form
+                        });
+                        const data = await res.json();
+                        if (res.status === 401) return this.logout();
+                        if (!res.ok) throw new Error(data.error || 'Unable to upload resource');
+                        await this.fetchProjectResources();
+                    } catch (error) {
+                        this.resourceError = error.message || 'Unable to upload resource';
+                    } finally {
+                        this.resourceUploading = false;
+                    }
+                },
+
+                async promptDeleteResource(resource) {
+                    if (!confirm(`Remove "${resource.file_name}" from shared project resources?`)) return;
+                    const res = await fetch(`http://127.0.0.1:5001/api/admin/projects/${encodeURIComponent(resource.project_id)}/resources/${encodeURIComponent(resource.id)}`, {
+                        method: 'DELETE',
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    const data = await res.json();
+                    if (res.status === 401) return this.logout();
+                    if (!res.ok) return alert(data.error || 'Unable to delete resource');
+                    await this.fetchProjectResources();
+                },
+
+                async downloadProjectResource(resource) {
+                    const res = await fetch(`http://127.0.0.1:5001/api/admin/projects/${encodeURIComponent(resource.project_id)}/resources/${encodeURIComponent(resource.id)}/download`, {
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    if (res.status === 401) return this.logout();
+                    if (!res.ok) {
+                        const data = await res.json();
+                        return alert(data.error || 'Unable to download resource');
+                    }
+                    const objectUrl = URL.createObjectURL(await res.blob());
+                    const link = document.createElement('a');
+                    link.href = objectUrl;
+                    link.download = resource.file_name;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    URL.revokeObjectURL(objectUrl);
+                },
+
+                formatResourceDetails(resource) {
+                    const date = new Date(resource.created_at);
+                    const size = resource.file_size < 1024 * 1024
+                        ? `${Math.max(1, Math.round(resource.file_size / 1024))} KB`
+                        : `${(resource.file_size / (1024 * 1024)).toFixed(1)} MB`;
+                    return `${Number.isNaN(date.getTime()) ? 'Date unavailable' : date.toLocaleDateString()} · ${size}`;
+                },
+
+                async toggleResourceComments(resource) {
+                    if (this.openResourceCommentsId === resource.id) {
+                        this.openResourceCommentsId = null;
+                        return;
+                    }
+                    this.openResourceCommentsId = resource.id;
+                    await this.fetchResourceComments(resource);
+                },
+
+                async fetchResourceComments(resource) {
+                    const res = await fetch(`http://127.0.0.1:5001/api/admin/projects/${encodeURIComponent(resource.project_id)}/resources/${encodeURIComponent(resource.id)}/comments`, {
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    if (res.status === 401) return this.logout();
+                    const data = await res.json();
+                    if (!res.ok) return alert(data.error || 'Unable to load comments');
+                    this.resourceComments[resource.id] = data;
+                },
+
+                async postResourceComment(resource) {
+                    const body = (this.resourceCommentDrafts[resource.id] || '').trim();
+                    if (!body) return;
+                    const res = await fetch(`http://127.0.0.1:5001/api/admin/projects/${encodeURIComponent(resource.project_id)}/resources/${encodeURIComponent(resource.id)}/comments`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token},
+                        body: JSON.stringify({body})
+                    });
+                    const data = await res.json();
+                    if (res.status === 401) return this.logout();
+                    if (!res.ok) return alert(data.error || 'Unable to post comment');
+                    this.resourceCommentDrafts[resource.id] = '';
+                    await this.fetchResourceComments(resource);
+                },
+
+                startProjectEdit(project) {
+                    this.editingProjectId = project.id;
+                    this.projectEditName = project.name;
+                    this.projectEditDescription = project.description || '';
+                },
+
+                async saveProject(projectId) {
+                    const res = await fetch(`http://127.0.0.1:5001/api/admin/projects/${projectId}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token},
+                        body: JSON.stringify({name: this.projectEditName, description: this.projectEditDescription})
+                    });
+                    const data = await res.json();
+                    if (!res.ok || data.error) return alert(data.error || 'Unable to update project');
+                    this.editingProjectId = null;
+                    await this.fetchOrgProjects();
+                    await this.fetchTeams();
+                },
+
+                async deleteProject(projectId) {
+                    if (!confirm('Delete this project and all of its teams, members, and uploaded files? This cannot be undone.')) return;
+                    const res = await fetch(`http://127.0.0.1:5001/api/admin/projects/${projectId}`, {
+                        method: 'DELETE',
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    const data = await res.json();
+                    if (!res.ok || data.error) return alert(data.error || 'Unable to delete project');
+                    if (this.selectedProjectFilter === projectId) {
+                        this.selectedProjectFilter = '';
+                        this.selectedTeam = null;
+                    }
+                    await this.fetchOrgProjects();
+                    await this.fetchTeams();
+                },
+
+                
+                async assignTeacher(proj) {
+                    if(!proj.newTeacherId) return;
+                    const res = await fetch(`http://127.0.0.1:5001/api/admin/projects/${proj.id}/teachers`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type':'application/json',
+                            'Authorization': 'Bearer ' + this.token
+                        },
+                        body: JSON.stringify({teacher_id: proj.newTeacherId})
+                    });
+                    const data = await res.json();
+                    if(data.error) alert(data.error);
+                    else this.fetchOrgProjects();
+                },
+
+                async unassignTeacher(projectId, teacherId) {
+                    if(!confirm("Remove teacher from project?")) return;
+                    await fetch(`http://127.0.0.1:5001/api/admin/projects/${projectId}/teachers/${teacherId}`, {
+                        method: 'DELETE',
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    this.fetchOrgProjects();
+                },
+
+                async fetchTeachers() {
+                    const res = await fetch('http://127.0.0.1:5001/api/admin/teachers', {
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    if (res.status === 401) return this.logout();
+                    this.teachers = await res.json();
+                },
+
+                startTeacherEdit(teacher) {
+                    this.editingTeacherId = teacher.id;
+                    this.teacherEditName = teacher.name;
+                    this.teacherEditEmail = teacher.email;
+                },
+
+                async saveTeacher(teacherId) {
+                    const res = await fetch(`http://127.0.0.1:5001/api/admin/teachers/${teacherId}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token},
+                        body: JSON.stringify({name: this.teacherEditName, email: this.teacherEditEmail})
+                    });
+                    const data = await res.json();
+                    if (!res.ok || data.error) return alert(data.error || 'Unable to update teacher');
+                    this.editingTeacherId = null;
+                    await this.fetchTeachers();
+                    await this.fetchOrgProjects();
+                },
+
+                async deleteTeacher(teacherId) {
+                    if (!confirm('Delete this teacher and remove their project assignments? This cannot be undone.')) return;
+                    const res = await fetch(`http://127.0.0.1:5001/api/admin/teachers/${teacherId}`, {
+                        method: 'DELETE',
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    const data = await res.json();
+                    if (!res.ok || data.error) return alert(data.error || 'Unable to delete teacher');
+                    await this.fetchTeachers();
+                    await this.fetchOrgProjects();
+                },
+
+                async createTeacher() {
+                    if(!this.newTeacherName || !this.newTeacherEmail) return alert("Name and email are required");
+                    const res = await fetch('http://127.0.0.1:5001/api/admin/teachers', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type':'application/json',
+                            'Authorization': 'Bearer ' + this.token
+                        },
+                        body: JSON.stringify({name: this.newTeacherName, email: this.newTeacherEmail})
+                    });
+                    const data = await res.json();
+                    if(data.error) alert(data.error);
+                    else {
+                        this.newTeacherName = '';
+                        this.newTeacherEmail = '';
+                        this.fetchTeachers();
+                    }
+                },
+
+                async createOrgProject() {
+                    if(!this.newProjectName) return;
+                    const res = await fetch('http://127.0.0.1:5001/api/admin/projects', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type':'application/json',
+                            'Authorization': 'Bearer ' + this.token
+                        },
+                        body: JSON.stringify({name: this.newProjectName, description: this.newProjectDescription})
+                    });
+                    const data = await res.json();
+                    if (!res.ok || data.error) return alert(data.error || 'Unable to create project');
+                    this.newProjectName = '';
+                    this.newProjectDescription = '';
+                    await this.fetchOrgProjects();
+                },
+                
+                async fetchOrganizations() {
+                    const res = await fetch('http://127.0.0.1:5001/api/sundeck/organizations', {
+                        headers: {'Authorization': 'Bearer ' + this.superToken}
+                    });
+                    if (res.status === 401) return this.logout();
+                    this.organizations = await res.json();
+                },
+
+                async createOrganization() {
+                    if(!this.newOrgName) return;
+                    await fetch('http://127.0.0.1:5001/api/sundeck/organizations', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type':'application/json',
+                            'Authorization': 'Bearer ' + this.superToken
+                        },
+                        body: JSON.stringify({name: this.newOrgName, logo_url: this.newOrgLogo || '/assets/logo.png'})
+                    });
+                    this.newOrgName = '';
+                    this.newOrgLogo = '';
+                    this.fetchOrganizations();
+                },
+
+                async deleteOrganization(id) {
+                    if(!confirm('Are you sure you want to delete this organization? This action cannot be undone.')) return;
+                    await fetch('http://127.0.0.1:5001/api/sundeck/organizations/' + id, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': 'Bearer ' + this.superToken
+                        }
+                    });
+                    this.fetchOrganizations();
+                },
+                
+                async fetchTeams() {
+                    let url = 'http://127.0.0.1:5001/api/admin/students/teams';
+                    if (this.selectedProjectFilter) {
+                        url += '?project_id=' + this.selectedProjectFilter;
+                    }
+                    const res = await fetch(url, {
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    if (res.status === 401) return this.logout();
+                    this.teams = await res.json();
+                    
+                    if (this.selectedTeam) {
+                        const updated = this.teams.find(t => t.id === this.selectedTeam.id);
+                        if (updated) this.selectTeam(updated);
+                        else this.selectedTeam = null;
+                    }
+                },
+                
+                async addTeam() {
+                    if(!this.newTeamName || !this.selectedProjectFilter) return alert('Select a project and enter a team name');
+                    const res = await fetch('http://127.0.0.1:5001/api/admin/students/teams', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type':'application/json',
+                            'Authorization': 'Bearer ' + this.token
+                        },
+                        body: JSON.stringify({name: this.newTeamName, project_id: this.selectedProjectFilter})
+                    });
+                    const data = await res.json();
+                    if (!res.ok || data.error) return alert(data.error || 'Unable to create team');
+                    this.newTeamName = '';
+                    await this.fetchTeams();
+                },
+                
+                async selectTeam(team) {
+                    this.selectedTeam = team;
+                    this.selectedTeamNameEdit = team.name;
+                    this.selectedTeamProjectEdit = team.project_id;
+                    this.studentConsentRecords = [];
+                    
+                    // Fetch students
+                    const resS = await fetch('http://127.0.0.1:5001/api/admin/students?team_id=' + team.id, {
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    this.teamStudents = await resS.json();
+
+                    // Fetch files
+                    const resF = await fetch('http://127.0.0.1:5001/api/admin/students/files?team_id=' + team.id, {
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    this.teamFiles = await resF.json();
+
+                    const resC = await fetch('http://127.0.0.1:5001/api/admin/students/consent?team_id=' + encodeURIComponent(team.id), {
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    if (resC.status === 401) return this.logout();
+                    const consentData = await resC.json();
+                    if (!resC.ok) return alert(consentData.error || 'Unable to load student privacy records');
+                    this.studentConsentRecords = consentData;
+                },
+
+                formatStudentConsent(studentId, consentType) {
+                    const student = this.studentConsentRecords.find(record => record.student_id === studentId);
+                    const consent = student?.[consentType];
+                    if (!consent?.recorded_at) return 'Not recorded';
+                    const status = consentType === 'privacy_notice'
+                        ? (consent.granted ? 'Acknowledged' : 'Not acknowledged')
+                        : (consent.granted ? 'Granted' : 'Declined');
+                    const timestamp = new Date(consent.recorded_at).toLocaleString();
+                    return `${status} · ${timestamp} · ${consent.wording_version}`;
+                },
+
+                async renameTeam() {
+                    if (!this.selectedTeam || !this.selectedTeamNameEdit) return;
+                    if (this.selectedTeamNameEdit === this.selectedTeam.name && this.selectedTeamProjectEdit === this.selectedTeam.project_id) return;
+                    const res = await fetch('http://127.0.0.1:5001/api/admin/students/teams/' + this.selectedTeam.id, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type':'application/json',
+                            'Authorization': 'Bearer ' + this.token
+                        },
+                        body: JSON.stringify({name: this.selectedTeamNameEdit, project_id: this.selectedTeamProjectEdit})
+                    });
+                    const data = await res.json();
+                    if (!res.ok || data.error) return alert(data.error || 'Unable to update team');
+                    this.selectedProjectFilter = this.selectedTeamProjectEdit;
+                    await this.fetchTeams();
+                },
+
+                async deleteTeam() {
+                    if(!this.selectedTeam || !confirm('Delete this team, its members, and uploaded files? This cannot be undone.')) return;
+                    const res = await fetch('http://127.0.0.1:5001/api/admin/students/teams/' + this.selectedTeam.id, {
+                        method: 'DELETE',
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    const data = await res.json();
+                    if (!res.ok || data.error) return alert(data.error || 'Unable to delete team');
+                    this.selectedTeam = null;
+                    await this.fetchTeams();
+                },
+
+                async addStudent() {
+                    if(!this.studentEmail || !this.studentName) return alert('Fill all fields');
+                    const res = await fetch('http://127.0.0.1:5001/api/admin/students', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type':'application/json',
+                            'Authorization': 'Bearer ' + this.token
+                        },
+                        body: JSON.stringify({
+                            team_id: this.selectedTeam.id,
+                            name: this.studentName,
+                            email: this.studentEmail
+                        })
+                    });
+                    const data = await res.json();
+                    if(data.error) alert(data.error);
+                    else {
+                        this.studentName = '';
+                        this.studentEmail = '';
+                        this.selectTeam(this.selectedTeam); // Refresh team data
+                        this.fetchTeams(); // Refresh counters
+                    }
+                },
+
+                async deleteStudent(id) {
+                    if(!confirm('Delete this student?')) return;
+                    const res = await fetch('http://127.0.0.1:5001/api/admin/students/' + id, {
+                        method: 'DELETE',
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    const data = await res.json();
+                    if (!res.ok || data.error) return alert(data.error || 'Unable to delete student');
+                    await this.selectTeam(this.selectedTeam);
+                    await this.fetchTeams();
+                },
+
+                startStudentEdit(student) {
+                    this.editingStudentId = student.id;
+                    this.studentEditName = student.name;
+                    this.studentEditEmail = student.email;
+                },
+
+                async saveStudent(studentId) {
+                    const res = await fetch('http://127.0.0.1:5001/api/admin/students/' + studentId, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token},
+                        body: JSON.stringify({name: this.studentEditName, email: this.studentEditEmail})
+                    });
+                    const data = await res.json();
+                    if (!res.ok || data.error) return alert(data.error || 'Unable to update student');
+                    this.editingStudentId = null;
+                    await this.selectTeam(this.selectedTeam);
+                },
+
+                async deleteFile(id) {
+                    if(!confirm('Delete this deliverable permanently?')) return;
+                    const res = await fetch('http://127.0.0.1:5001/api/admin/students/files/' + id, {
+                        method: 'DELETE',
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    const data = await res.json();
+                    if (!res.ok || data.error) return alert(data.error || 'Unable to delete deliverable');
+                    await this.selectTeam(this.selectedTeam);
+                    await this.fetchTeams();
+                },
+
+                async downloadFile(id) {
+                    const res = await fetch(`http://127.0.0.1:5001/api/admin/students/files/${id}/download`, {
+                        headers: {'Authorization': 'Bearer ' + this.token}
+                    });
+                    if (!res.ok) {
+                        const data = await res.json();
+                        return alert(data.error || 'Unable to download deliverable');
+                    }
+                    const blobUrl = URL.createObjectURL(await res.blob());
+                    const link = document.createElement('a');
+                    const disposition = res.headers.get('Content-Disposition') || '';
+                    link.href = blobUrl;
+                    link.download = disposition.match(/filename="?([^";]+)"?/i)?.[1] || 'deliverable';
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    URL.revokeObjectURL(blobUrl);
+                },
+
+                logout(expired = false) {
+                    if (this.sessionMonitor) this.sessionMonitor.stop();
+                    this.revokeSession(this.token);
+                    this.revokeSession(this.superToken);
+                    this.sessionExpiredMessage = expired;
+                    this.sessionWarning = false;
+                    this.token = '';
+                    this.superToken = '';
+                    this.teams = [];
+                    this.selectedTeam = null;
+                    localStorage.removeItem('admin_token');
+                    localStorage.removeItem('superadmin_token');
+                    this.mode = 'login';
+                }
+            }
+        }
+    </script>
+</body>
+</html>
