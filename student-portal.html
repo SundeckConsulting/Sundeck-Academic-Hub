@@ -912,11 +912,14 @@
             let lastActivityAt = Date.now();
             let lastHeartbeatAt = 0;
             let expired = false;
+            let timerId = null;
             const tokenExpiry = () => {
                 try {
-                    const segment = getToken().split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                    const token = getToken();
+                    if (!token) return Date.now();
+                    const segment = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
                     const payload = JSON.parse(atob(segment + '='.repeat((4 - segment.length % 4) % 4)));
-                    return payload.exp * 1000;
+                    return (payload.exp || 0) * 1000;
                 } catch {
                     return Date.now();
                 }
@@ -927,11 +930,16 @@
                 lastHeartbeatAt = Date.now();
                 try {
                     const response = await fetch('/api/auth/session/activity', {method: 'POST', headers: {'Authorization': 'Bearer ' + token}});
-                    if (response.status === 401 && !expired) { expired = true; onExpire(); }
+                    if (response.status === 401 && !expired) { 
+                        expired = true; 
+                        if (timerId) window.clearInterval(timerId);
+                        onExpire(); 
+                    }
                 } catch {}
             };
             const markActivity = () => {
                 if (expired) return;
+                if (document.hidden) return;
                 lastActivityAt = Date.now();
                 app.sessionWarning = false;
                 if (Date.now() - lastHeartbeatAt >= 60000) heartbeat();
@@ -941,20 +949,55 @@
                 const now = Date.now();
                 const remaining = Math.min(idleSeconds * 1000 - (now - lastActivityAt), tokenExpiry() - now);
                 app.sessionSecondsLeft = Math.max(0, Math.ceil(remaining / 1000));
-                app.sessionWarning = remaining <= 300000;
-                if (remaining <= 0) { expired = true; onExpire(); }
+                app.sessionWarning = remaining <= 300000 && remaining > 0;
+                if (remaining <= 0) { 
+                    expired = true; 
+                    if (timerId) window.clearInterval(timerId);
+                    onExpire(); 
+                }
             };
-            ['keydown', 'pointerdown', 'pointermove', 'touchstart', 'scroll'].forEach(name => document.addEventListener(name, markActivity, {passive: true}));
+            const events = ['keydown', 'pointerdown', 'pointermove', 'touchstart', 'scroll'];
+            events.forEach(name => document.addEventListener(name, markActivity, {passive: true}));
+
+            const onVisibilityOrFocus = () => {
+                if (!expired) {
+                    tick();
+                }
+            };
+            document.addEventListener('visibilitychange', onVisibilityOrFocus);
+            window.addEventListener('focus', onVisibilityOrFocus);
+
             heartbeat();
-            const timerId = window.setInterval(tick, 1000);
+            timerId = window.setInterval(tick, 1000);
             return {
                 stop() {
                     expired = true;
-                    window.clearInterval(timerId);
-                    ['keydown', 'pointerdown', 'pointermove', 'touchstart', 'scroll'].forEach(name => document.removeEventListener(name, markActivity));
+                    if (timerId) window.clearInterval(timerId);
+                    events.forEach(name => document.removeEventListener(name, markActivity));
+                    document.removeEventListener('visibilitychange', onVisibilityOrFocus);
+                    window.removeEventListener('focus', onVisibilityOrFocus);
                 },
                 extend: async () => { markActivity(); await heartbeat(); }
             };
+        }
+
+        function getStoredStudentToken() {
+            const token = localStorage.getItem('student_token') || '';
+            if (!token) return '';
+            try {
+                const segment = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                const payload = JSON.parse(atob(segment + '='.repeat((4 - segment.length % 4) % 4)));
+                if (payload.role !== 'student' || (payload.exp && payload.exp * 1000 <= Date.now())) {
+                    localStorage.removeItem('student_token');
+                    localStorage.removeItem('student_profile');
+                    return '';
+                }
+                return token;
+            } catch {
+                localStorage.removeItem('student_token');
+                localStorage.removeItem('student_profile');
+                return '';
+            }
         }
 
         function studentApp() {
@@ -964,7 +1007,7 @@
                 otpSent: false,
                 otpRequestLoading: false,
                 otpRequestError: '',
-                token: localStorage.getItem('student_token') || '',
+                token: getStoredStudentToken(),
                 student: JSON.parse(localStorage.getItem('student_profile') || 'null'),
                 files: [],
                 team: {name: '', members: [], project_id: null},
@@ -1180,7 +1223,7 @@ activeDropdown: null,
 
                 startSessionMonitor() {
                     if (this.sessionMonitor) this.sessionMonitor.stop();
-                    this.sessionMonitor = startActivitySession(this, () => this.token, 60 * 60, () => this.logout(true));
+                    this.sessionMonitor = startActivitySession(this, () => this.token, 15 * 60, () => this.logout(true));
                 },
 
                 formatSessionCountdown() {
@@ -1312,26 +1355,36 @@ activeDropdown: null,
                 },
 
                 async fetchFiles() {
-                    const res = await fetch('/api/students/files', {
-                        headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
-                    });
-                    if (res.status === 401) return this.logout();
-                    this.files = await res.json();
+                    try {
+                        const res = await fetch('/api/students/files', {
+                            headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                        });
+                        if (res.status === 401 || res.status === 403) return this.logout(true);
+                        if (!res.ok) { this.files = []; return; }
+                        const data = await res.json().catch(() => []);
+                        this.files = Array.isArray(data) ? data : [];
+                    } catch {
+                        this.files = [];
+                    }
                 },
                 
                 async fetchDeliverableFolders() {
-                    const res = await fetch('/api/students/file-folders', {
-                        headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
-                    });
-                    if (res.status === 401) return this.logout(true);
-                    const data = await res.json();
-                    if (!res.ok) return alert(data.error || 'Unable to load folders');
-                    this.deliverableFolders = data;
+                    try {
+                        const res = await fetch('/api/students/file-folders', {
+                            headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                        });
+                        if (res.status === 401 || res.status === 403) return this.logout(true);
+                        if (!res.ok) { this.deliverableFolders = []; return; }
+                        const data = await res.json().catch(() => []);
+                        this.deliverableFolders = Array.isArray(data) ? data : [];
+                    } catch {
+                        this.deliverableFolders = [];
+                    }
                 },
                 
-                
                 filteredStudentProjectResources() {
-                    return this.projectResources.filter(res => (res.folder_id || '') === (this.selectedProjectFolderId || ''));
+                    const list = Array.isArray(this.projectResources) ? this.projectResources : [];
+                    return list.filter(res => (res.folder_id || '') === (this.selectedProjectFolderId || ''));
                 },
                 
                 myTasks() {
@@ -1540,7 +1593,8 @@ activeDropdown: null,
                     }
                 },
 filteredDeliverables() {
-                    return this.files.filter(file => (file.folder_id || '') === (this.selectedDeliverableFolderId || ''));
+                    const list = Array.isArray(this.files) ? this.files : [];
+                    return list.filter(file => (file.folder_id || '') === (this.selectedDeliverableFolderId || ''));
                 },
                 
                 
@@ -2019,35 +2073,47 @@ async fetchProjectData() {
                 },
 
                 async fetchTeam() {
-                    const res = await fetch('/api/students/team', {
-                        headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
-                    });
-                    if (res.status === 401) return this.logout(true);
-                    const data = await res.json();
-                    if (!res.ok) return alert(data.error || 'Unable to load your team');
-                    this.team = data;
-                    await this.fetchProjectData();
-                    this.initRealtime();
+                    try {
+                        const res = await fetch('/api/students/team', {
+                            headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                        });
+                        if (res.status === 401 || res.status === 403 || res.status === 404) return this.logout(true);
+                        const data = await res.json().catch(() => null);
+                        if (!res.ok || !data || data.error) return this.logout(true);
+                        this.team = data;
+                        await this.fetchProjectData();
+                        this.initRealtime();
+                    } catch {
+                        this.logout(true);
+                    }
                 },
 
                 async fetchProjectResources() {
-                    const res = await fetch('/api/students/resources', {
-                        headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
-                    });
-                    if (res.status === 401) return this.logout(true);
-                    const data = await res.json();
-                    if (!res.ok) return alert(data.error || 'Unable to load shared project resources');
-                    this.projectResources = data;
+                    try {
+                        const res = await fetch('/api/students/resources', {
+                            headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                        });
+                        if (res.status === 401 || res.status === 403) return this.logout(true);
+                        if (!res.ok) { this.projectResources = []; return; }
+                        const data = await res.json().catch(() => []);
+                        this.projectResources = Array.isArray(data) ? data : [];
+                    } catch {
+                        this.projectResources = [];
+                    }
                 },
 
                 async fetchProjectResourceFolders() {
-                    const res = await fetch('/api/students/resource-folders', {
-                        headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
-                    });
-                    if (res.status === 401) return this.logout(true);
-                    const data = await res.json();
-                    if (!res.ok) return alert(data.error || 'Unable to load folders');
-                    this.projectResourceFolders = data;
+                    try {
+                        const res = await fetch('/api/students/resource-folders', {
+                            headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                        });
+                        if (res.status === 401 || res.status === 403) return this.logout(true);
+                        if (!res.ok) { this.projectResourceFolders = []; return; }
+                        const data = await res.json().catch(() => []);
+                        this.projectResourceFolders = Array.isArray(data) ? data : [];
+                    } catch {
+                        this.projectResourceFolders = [];
+                    }
                 },
 
                 async downloadProjectResource(resource) {
@@ -2186,6 +2252,19 @@ async fetchProjectData() {
                     this.sessionWarning = false;
                     this.token = '';
                     this.student = null;
+                    this.team = {name: '', members: [], project_id: null};
+                    this.files = [];
+                    this.deliverableFolders = [];
+                    this.projectResources = [];
+                    this.projectResourceFolders = [];
+                    this.projectTasks = [];
+                    this.workPackages = [];
+                    this.activities = [];
+                    this.allTeams = [];
+                    this.otpSent = false;
+                    this.otp = '';
+                    this.otpRequestError = '';
+                    this.otpVerifyError = '';
                     localStorage.removeItem('student_token');
                     localStorage.removeItem('student_profile');
                 }

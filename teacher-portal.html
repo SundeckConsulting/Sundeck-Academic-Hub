@@ -70,17 +70,46 @@
                 <div x-show="!otpSent">
                     <h2 class="text-lg font-semibold text-slate-900">Teacher sign in</h2>
                     <label for="student-email" class="mt-5 block text-sm font-medium text-slate-700">University email</label>
-                    <input id="student-email" type="email" x-model="email" autocomplete="email" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100" placeholder="professor@university.edu">
-                    <button @click="requestOtp" class="btn-primary mt-5 w-full rounded-xl px-4 py-3 text-sm font-semibold">Send secure code</button>
+                    <input id="student-email" type="email" x-model="email" @keydown.enter.prevent="requestOtp" autocomplete="email" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100" placeholder="professor@university.edu">
+                    
+                    <div x-show="otpRequestError" x-cloak class="mt-3 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs text-red-700" role="alert">
+                        <svg class="h-4 w-4 shrink-0 mt-0.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        <span x-text="otpRequestError" class="font-medium"></span>
+                    </div>
+
+                    <button @click="requestOtp" :disabled="otpRequestLoading" class="btn-primary mt-5 w-full rounded-xl px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 flex items-center justify-center gap-2">
+                        <svg x-show="otpRequestLoading" class="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                        <span x-text="otpRequestLoading ? 'Sending secure code...' : 'Send secure code'"></span>
+                    </button>
                 </div>
 
-                <div x-show="otpSent" x-cloak>
+                <div x-show="otpSent" x-cloak class="animate-fade-in">
+                    <div class="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 flex items-start gap-2.5 text-xs text-emerald-800">
+                        <svg class="h-4 w-4 shrink-0 mt-0.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <div>
+                            <span class="font-semibold block text-emerald-900">Secure code sent</span>
+                            <span class="text-emerald-700">If your account is registered, a 6-digit access code has been delivered to your email inbox.</span>
+                        </div>
+                    </div>
+
                     <h2 class="text-lg font-semibold text-slate-900">Check your email</h2>
                     <p class="mt-2 text-sm leading-6 text-slate-500">We sent a secure code to <span class="font-medium text-slate-700" x-text="email"></span>.</p>
                     <label for="student-otp" class="mt-5 block text-sm font-medium text-slate-700">Verification code</label>
-                    <input id="student-otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" x-model="otp" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-center font-mono text-2xl tracking-[0.45em] outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100" placeholder="_ _ _ _ _ _">
-                    <button @click="verifyOtp" class="btn-primary mt-5 w-full rounded-xl px-4 py-3 text-sm font-semibold">Authenticate</button>
-                    <button @click="startOverLogin" class="mt-4 w-full text-center text-sm font-medium text-slate-500 transition hover:text-slate-900">Use another email</button>
+                    <input id="student-otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" x-model="otp" @keydown.enter.prevent="verifyOtp" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-center font-mono text-2xl tracking-[0.45em] outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100" placeholder="_ _ _ _ _ _">
+
+                    <div x-show="otpVerifyError" x-cloak class="mt-3 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs text-red-700" role="alert">
+                        <svg class="h-4 w-4 shrink-0 mt-0.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        <span x-text="otpVerifyError" class="font-medium"></span>
+                    </div>
+
+                    <button @click="verifyOtp" :disabled="otpVerifyLoading" class="btn-primary mt-5 w-full rounded-xl px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 flex items-center justify-center gap-2">
+                        <svg x-show="otpVerifyLoading" class="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                        <span x-text="otpVerifyLoading ? 'Authenticating...' : 'Authenticate'"></span>
+                    </button>
+                    <div class="mt-4 flex items-center justify-between text-xs">
+                        <button @click="requestOtp" :disabled="otpRequestLoading" class="text-orange-600 hover:text-orange-700 font-medium">Resend code</button>
+                        <button @click="startOverLogin" class="text-slate-500 hover:text-slate-900 transition">Use another email</button>
+                    </div>
                     <p class="mt-5 text-center text-xs text-slate-400">Code expires in 10 minutes and can only be used once.</p>
                 </div>
             </div>
@@ -944,11 +973,14 @@
             let lastActivityAt = Date.now();
             let lastHeartbeatAt = 0;
             let expired = false;
+            let timerId = null;
             const tokenExpiry = () => {
                 try {
-                    const segment = getToken().split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                    const token = getToken();
+                    if (!token) return Date.now();
+                    const segment = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
                     const payload = JSON.parse(atob(segment + '='.repeat((4 - segment.length % 4) % 4)));
-                    return payload.exp * 1000;
+                    return (payload.exp || 0) * 1000;
                 } catch {
                     return Date.now();
                 }
@@ -959,11 +991,16 @@
                 lastHeartbeatAt = Date.now();
                 try {
                     const response = await fetch('/api/auth/session/activity', {method: 'POST', headers: {'Authorization': 'Bearer ' + token}});
-                    if (response.status === 401 && !expired) { expired = true; onExpire(); }
+                    if (response.status === 401 && !expired) { 
+                        expired = true; 
+                        if (timerId) window.clearInterval(timerId);
+                        onExpire(); 
+                    }
                 } catch {}
             };
             const markActivity = () => {
                 if (expired) return;
+                if (document.hidden) return;
                 lastActivityAt = Date.now();
                 app.sessionWarning = false;
                 if (Date.now() - lastHeartbeatAt >= 60000) heartbeat();
@@ -973,20 +1010,55 @@
                 const now = Date.now();
                 const remaining = Math.min(idleSeconds * 1000 - (now - lastActivityAt), tokenExpiry() - now);
                 app.sessionSecondsLeft = Math.max(0, Math.ceil(remaining / 1000));
-                app.sessionWarning = remaining <= 300000;
-                if (remaining <= 0) { expired = true; onExpire(); }
+                app.sessionWarning = remaining <= 300000 && remaining > 0;
+                if (remaining <= 0) { 
+                    expired = true; 
+                    if (timerId) window.clearInterval(timerId);
+                    onExpire(); 
+                }
             };
-            ['keydown', 'pointerdown', 'pointermove', 'touchstart', 'scroll'].forEach(name => document.addEventListener(name, markActivity, {passive: true}));
+            const events = ['keydown', 'pointerdown', 'pointermove', 'touchstart', 'scroll'];
+            events.forEach(name => document.addEventListener(name, markActivity, {passive: true}));
+
+            const onVisibilityOrFocus = () => {
+                if (!expired) {
+                    tick();
+                }
+            };
+            document.addEventListener('visibilitychange', onVisibilityOrFocus);
+            window.addEventListener('focus', onVisibilityOrFocus);
+
             heartbeat();
-            const timerId = window.setInterval(tick, 1000);
+            timerId = window.setInterval(tick, 1000);
             return {
                 stop() {
                     expired = true;
-                    window.clearInterval(timerId);
-                    ['keydown', 'pointerdown', 'pointermove', 'touchstart', 'scroll'].forEach(name => document.removeEventListener(name, markActivity));
+                    if (timerId) window.clearInterval(timerId);
+                    events.forEach(name => document.removeEventListener(name, markActivity));
+                    document.removeEventListener('visibilitychange', onVisibilityOrFocus);
+                    window.removeEventListener('focus', onVisibilityOrFocus);
                 },
                 extend: async () => { markActivity(); await heartbeat(); }
             };
+        }
+
+        function getStoredTeacherToken() {
+            const token = localStorage.getItem('teacher_token') || '';
+            if (!token) return '';
+            try {
+                const segment = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                const payload = JSON.parse(atob(segment + '='.repeat((4 - segment.length % 4) % 4)));
+                if ((payload.role !== 'teacher' && payload.role !== 'admin') || (payload.exp && payload.exp * 1000 <= Date.now())) {
+                    localStorage.removeItem('teacher_token');
+                    localStorage.removeItem('teacher_profile');
+                    return '';
+                }
+                return token;
+            } catch {
+                localStorage.removeItem('teacher_token');
+                localStorage.removeItem('teacher_profile');
+                return '';
+            }
         }
 
         function teacherApp() {
@@ -994,8 +1066,13 @@
                 email: '',
                 otp: '',
                 otpSent: false,
-                token: localStorage.getItem('student_token') || '',
-                student: JSON.parse(localStorage.getItem('student_profile') || 'null'),
+                otpRequestLoading: false,
+                otpRequestError: '',
+                otpVerifyLoading: false,
+                otpVerifyError: '',
+                token: getStoredTeacherToken(),
+                teacher: JSON.parse(localStorage.getItem('teacher_profile') || 'null'),
+                student: JSON.parse(localStorage.getItem('teacher_profile') || 'null'),
                 files: [],
                 team: {name: '', members: [], project_id: null},
                 isEmbed: false,
@@ -1124,6 +1201,14 @@
                     this.realtimeToasts = this.realtimeToasts.filter(t => t.id !== id);
                 },
 
+                notify(title, message) {
+                    const id = Date.now().toString() + Math.random().toString(36).substr(2, 4);
+                    this.realtimeToasts.push({ id, title, message });
+                    setTimeout(() => {
+                        this.realtimeToasts = this.realtimeToasts.filter(t => t.id !== id);
+                    }, 4500);
+                },
+
 
                 dependencyModalOpen: false,
                 depFromTeamId: '', depFromWpId: '', depFromActId: '', depWhatNeeded: '', mapModalOpen: false, mapToTaskId: '', mappingRequest: null, mapLoading: false,
@@ -1217,7 +1302,7 @@ activeDropdown: null,
                     if(urlParams.has('embed')) this.isEmbed = true;
                     if(urlParams.has('token')) {
                         this.token = urlParams.get('token');
-                        localStorage.setItem('student_token', this.token);
+                        localStorage.setItem('teacher_token', this.token);
                     }
                     if(urlParams.has('team_id')) {
                         this.initialTeamId = urlParams.get('team_id');
@@ -1315,7 +1400,7 @@ activeDropdown: null,
 
                 startSessionMonitor() {
                     if (this.sessionMonitor) this.sessionMonitor.stop();
-                    this.sessionMonitor = startActivitySession(this, () => this.token, 60 * 60, () => this.logout(true));
+                    this.sessionMonitor = startActivitySession(this, () => this.token, 15 * 60, () => this.logout(true));
                 },
 
                 formatSessionCountdown() {
@@ -1337,17 +1422,29 @@ activeDropdown: null,
 
                 
                 async requestOtp() {
-                    if (!this.email) return alert('Please enter your email.');
-                    const res = await fetch('/api/teacher/auth/request-otp', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ email: this.email })
-                    });
-                    const data = await res.json();
-                    if(data.error) alert(data.error);
-                    else {
-                        alert(data.message);
+                    this.otpRequestError = '';
+                    const cleanEmail = (this.email || '').trim().toLowerCase();
+                    if (!cleanEmail) {
+                        this.otpRequestError = 'Please enter your university email.';
+                        return;
+                    }
+                    this.otpRequestLoading = true;
+                    try {
+                        const res = await fetch('/api/teacher/auth/request-otp', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ email: cleanEmail })
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok || data.error) {
+                            this.otpRequestError = data.error || 'Unable to send secure code. Please try again.';
+                            return;
+                        }
                         this.otpSent = true;
+                    } catch {
+                        this.otpRequestError = 'Network error. Please check your connection and try again.';
+                    } finally {
+                        this.otpRequestLoading = false;
                     }
                 },
 
@@ -1355,22 +1452,43 @@ activeDropdown: null,
                     this.sessionExpiredMessage = false;
                     this.otpSent = false;
                     this.otp = '';
+                    this.otpRequestError = '';
+                    this.otpVerifyError = '';
+                    this.otpRequestLoading = false;
+                    this.otpVerifyLoading = false;
                 },
 
                 async verifyOtp() {
-                    if (!this.otp) return alert('Please enter the OTP.');
-                    const res = await fetch('/api/teacher/auth/verify-otp', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ email: this.email, otp: this.otp })
-                    });
-                    const data = await res.json();
-                    if(data.error) alert(data.error);
-                    else {
+                    this.otpVerifyError = '';
+                    const cleanOtp = (this.otp || '').trim();
+                    if (!cleanOtp) {
+                        this.otpVerifyError = 'Please enter the 6-digit verification code.';
+                        return;
+                    }
+                    this.otpVerifyLoading = true;
+                    try {
+                        const res = await fetch('/api/teacher/auth/verify-otp', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ email: (this.email || '').trim().toLowerCase(), otp: cleanOtp })
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok || data.error) {
+                            this.otpVerifyError = data.error || 'Invalid code or email. Please check and try again.';
+                            return;
+                        }
                         this.token = data.token;
-                        localStorage.setItem('student_token', data.token); // using same key for ease
+                        this.teacher = data.teacher || null;
+                        this.student = this.teacher;
+                        localStorage.setItem('teacher_token', data.token);
+                        if (data.teacher) localStorage.setItem('teacher_profile', JSON.stringify(data.teacher));
+                        localStorage.removeItem('student_token');
                         this.sessionExpiredMessage = false;
                         this.init();
+                    } catch {
+                        this.otpVerifyError = 'Authentication failed. Please check your connection and try again.';
+                    } finally {
+                        this.otpVerifyLoading = false;
                     }
                 },
 
@@ -2216,8 +2334,8 @@ async fetchProjectData(team = this.team) {
                         });
                         if (res.status === 401) return this.logout(true);
                         if (!res.ok) {
-                            const data = await res.json();
-                            return alert(data.error || 'Unable to download shared resource');
+                            const data = await res.json().catch(() => ({}));
+                            return this.notify('Download Error', data.error || 'Unable to download shared resource');
                         }
                         const objectUrl = URL.createObjectURL(await res.blob());
                         const link = document.createElement('a');
@@ -2227,8 +2345,9 @@ async fetchProjectData(team = this.team) {
                         link.click();
                         link.remove();
                         URL.revokeObjectURL(objectUrl);
+                        this.notify('Download Started', resource.file_name);
                     } catch {
-                        alert('Download failed. Check your connection and try again.');
+                        this.notify('Download Failed', 'Please check your connection and try again.');
                     }
                 },
 
@@ -2323,8 +2442,8 @@ async fetchProjectData(team = this.team) {
                         });
                         if (response.status === 401) return this.logout(true);
                         if (!response.ok) {
-                            const data = await response.json();
-                            return alert(data.error || 'Unable to download this file.');
+                            const data = await response.json().catch(() => ({}));
+                            return this.notify('Download Error', data.error || 'Unable to download this file.');
                         }
                         const objectUrl = URL.createObjectURL(await response.blob());
                         const link = document.createElement('a');
@@ -2334,8 +2453,9 @@ async fetchProjectData(team = this.team) {
                         link.click();
                         link.remove();
                         URL.revokeObjectURL(objectUrl);
+                        this.notify('Download Started', file.file_name || 'deliverable');
                     } catch {
-                        alert('Download failed. Check your connection and try again.');
+                        this.notify('Download Failed', 'Please check your connection and try again.');
                     }
                 },
 
@@ -2345,9 +2465,24 @@ async fetchProjectData(team = this.team) {
                     this.sessionExpiredMessage = expired;
                     this.sessionWarning = false;
                     this.token = '';
+                    this.teacher = null;
                     this.student = null;
+                    this.otpSent = false;
+                    this.otp = '';
+                    this.otpRequestError = '';
+                    this.otpVerifyError = '';
+                    this.myProjects = [];
+                    this.myTeams = [];
+                    this.workPackages = [];
+                    this.activities = [];
+                    this.projectTasks = [];
+                    this.files = [];
+                    this.deliverableFolders = [];
+                    this.projectResources = [];
+                    this.projectResourceFolders = [];
+                    localStorage.removeItem('teacher_token');
+                    localStorage.removeItem('teacher_profile');
                     localStorage.removeItem('student_token');
-                    localStorage.removeItem('student_profile');
                 }
             }
         }

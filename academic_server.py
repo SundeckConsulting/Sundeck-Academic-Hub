@@ -252,7 +252,7 @@ if CORS_ALLOWED_ORIGINS:
 JWT_ALGORITHM = "HS256"
 SESSION_MAX_AGE_SECONDS = 8 * 60 * 60
 ADMIN_IDLE_SECONDS = 30 * 60
-USER_IDLE_SECONDS = 60 * 60
+USER_IDLE_SECONDS = 15 * 60
 STUDENT_PRIVACY_NOTICE_VERSION = "academic-hub-notice-2026-09-v1"
 STUDENT_MARKETING_PERMISSION_VERSION = "academic-hub-marketing-2026-09-v3-work-only-anonymized"
 
@@ -580,17 +580,26 @@ def _get_accessible_team_id(db, requested_team_id=None):
 def _get_student_project_id(db, student_id, org_id):
     if g.role in ["teacher", "admin"]:
         data = request.get_json(silent=True)
+        requested_project_id = request.args.get("project_id") or (data.get("project_id") if isinstance(data, dict) else None) or request.form.get("project_id")
+        if not requested_project_id and request.view_args:
+            requested_project_id = request.view_args.get("project_id")
+        if requested_project_id:
+            allowed, _ = _resolve_project_access(db, requested_project_id)
+            if allowed:
+                return requested_project_id
         requested_team_id = request.args.get("team_id") or (data.get("team_id") if isinstance(data, dict) else None) or request.form.get("team_id")
-        team_id = _get_accessible_team_id(db, requested_team_id)
-        if not team_id:
-            return None
-        row = db.execute("""
-            SELECT t.project_id
-            FROM student_teams t
-            JOIN projects p ON p.id = t.project_id AND p.organization_id = t.organization_id
-            WHERE t.id = ? AND t.organization_id = ?
-        """, (team_id, org_id)).fetchone()
-        return row[0] if row else None
+        if requested_team_id:
+            team_id = _get_accessible_team_id(db, requested_team_id)
+            if not team_id:
+                return None
+            row = db.execute("""
+                SELECT t.project_id
+                FROM student_teams t
+                JOIN projects p ON p.id = t.project_id AND p.organization_id = t.organization_id
+                WHERE t.id = ? AND t.organization_id = ?
+            """, (team_id, org_id)).fetchone()
+            return row[0] if row else None
+        return None
 
     row = db.execute("""
         SELECT t.project_id
@@ -600,6 +609,7 @@ def _get_student_project_id(db, student_id, org_id):
         WHERE s.id = ? AND s.organization_id = ?
     """, (student_id, org_id)).fetchone()
     return row[0] if row else None
+
 
 
 def _resolve_project_access(db, project_id, requested_team_id=None):
@@ -817,16 +827,22 @@ def require_admin_auth(f):
         try:
             payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
             role = payload.get("role")
-            if role not in ["admin", "teacher", "sundeck_admin"]:
+            if role not in ["admin", "teacher", "student", "sundeck_admin"]:
                 return jsonify({"error": "Unauthorized"}), 401
             if not _touch_session(payload):
                 return jsonify({"error": "Session expired"}), 401
             g.org_id = payload.get("organization_id")
             g.role = role
             g.user_id = payload.get("sub")
+            if role == "student" and not (
+                (request.endpoint == "download_team_file" and request.method == "GET")
+            ):
+                return jsonify({"error": "Unauthorized"}), 403
             if role == "teacher" and not (
                 (request.endpoint == "manage_teams" and request.method == "GET")
                 or (request.endpoint == "download_team_file" and request.method == "GET")
+                or (request.endpoint == "download_project_resource_admin" and request.method == "GET")
+                or (request.endpoint == "admin_download_project_deliverable" and request.method == "GET")
             ):
                 return jsonify({"error": "Unauthorized"}), 403
             if role == "sundeck_admin" and request.endpoint not in {
@@ -1132,7 +1148,16 @@ def delete_project_resource(project_id, resource_id):
 @app.route("/api/admin/projects/<project_id>/resources/<resource_id>/download", methods=["GET"])
 @require_admin_auth
 def download_project_resource_admin(project_id, resource_id):
-    if g.role != "admin":
+    if g.role == "teacher":
+        with sqlite3.connect(DB_PATH) as db:
+            row = db.execute("""
+                SELECT 1 FROM project_professors pp
+                JOIN projects p ON p.id = pp.project_id AND p.organization_id = ?
+                WHERE pp.project_id = ? AND pp.professor_id = ?
+            """, (g.org_id, project_id, g.user_id)).fetchone()
+            if not row:
+                return jsonify({"error": "Unauthorized"}), 403
+    elif g.role != "admin":
         return jsonify({"error": "Tenant administrator access required"}), 403
     return _send_project_resource(project_id, resource_id, g.org_id)
 
@@ -1475,23 +1500,40 @@ def delete_team_file(file_id):
 @require_admin_auth
 def get_team_files():
     team_id = request.args.get("team_id")
-    if not team_id:
-        return jsonify({"error": "team_id required"}), 400
-        
+    project_id = request.args.get("project_id")
     with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
-        cur.execute("""
-            SELECT f.id, f.file_name, f.uploaded_at, f.uploaded_by as student_name
-            FROM student_files f
-            JOIN student_teams t ON t.id = f.team_id
-            WHERE f.team_id = ? AND t.organization_id = ?
-            ORDER BY f.uploaded_at DESC
-        """, (team_id, g.org_id))
+        if team_id:
+            cur.execute("""
+                SELECT f.id, f.file_name, f.file_size, f.file_type, f.uploaded_at, f.uploaded_by as student_name, t.name as team_name, t.id as team_id
+                FROM student_files f
+                JOIN student_teams t ON t.id = f.team_id
+                WHERE f.team_id = ? AND t.organization_id = ?
+                ORDER BY f.uploaded_at DESC
+            """, (team_id, g.org_id))
+        elif project_id:
+            cur.execute("""
+                SELECT f.id, f.file_name, f.file_size, f.file_type, f.uploaded_at, f.uploaded_by as student_name, t.name as team_name, t.id as team_id
+                FROM student_files f
+                JOIN student_teams t ON t.id = f.team_id
+                WHERE t.project_id = ? AND t.organization_id = ?
+                ORDER BY f.uploaded_at DESC
+            """, (project_id, g.org_id))
+        else:
+            cur.execute("""
+                SELECT f.id, f.file_name, f.file_size, f.file_type, f.uploaded_at, f.uploaded_by as student_name, t.name as team_name, t.id as team_id, p.name as project_name
+                FROM student_files f
+                JOIN student_teams t ON t.id = f.team_id
+                JOIN projects p ON p.id = t.project_id AND p.organization_id = t.organization_id
+                WHERE t.organization_id = ?
+                ORDER BY f.uploaded_at DESC
+            """, (g.org_id,))
         files = [dict(row) for row in cur.fetchall()]
         return jsonify(files)
 
 @app.route("/api/admin/students/files/<file_id>/download", methods=["GET"])
+@app.route("/api/students/files/<file_id>/download", methods=["GET"])
 @require_admin_auth
 def download_team_file(file_id):
     with sqlite3.connect(DB_PATH) as db:
@@ -1501,16 +1543,23 @@ def download_team_file(file_id):
             cur.execute("""
                 SELECT f.file_path, f.file_name
                 FROM student_files f
-                JOIN student_teams t ON t.id = f.team_id AND t.organization_id = f.organization_id
-                JOIN projects p ON p.id = t.project_id AND p.organization_id = t.organization_id
+                JOIN student_teams t ON t.id = f.team_id
+                JOIN projects p ON p.id = t.project_id AND p.organization_id = ?
                 JOIN project_professors pp ON pp.project_id = p.id AND pp.professor_id = ?
                 WHERE f.id = ? AND t.organization_id = ?
-            """, (g.user_id, file_id, g.org_id))
+            """, (g.org_id, g.user_id, file_id, g.org_id))
+        elif g.role == "student":
+            cur.execute("""
+                SELECT f.file_path, f.file_name
+                FROM student_files f
+                JOIN students s ON s.team_id = f.team_id
+                WHERE f.id = ? AND s.id = ? AND s.organization_id = ?
+            """, (file_id, g.user_id, g.org_id))
         else:
             cur.execute("""
                 SELECT f.file_path, f.file_name
                 FROM student_files f
-                JOIN student_teams t ON t.id = f.team_id AND t.organization_id = f.organization_id
+                JOIN student_teams t ON t.id = f.team_id
                 WHERE f.id = ? AND t.organization_id = ?
             """, (file_id, g.org_id))
         file_record = cur.fetchone()
@@ -1821,15 +1870,15 @@ def list_student_project_resources():
         _ensure_project_resources_table(db)
         _ensure_project_management_tables(db)
         cur = db.cursor()
+        project_id = _get_student_project_id(db, g.student_id, g.org_id)
+        if not project_id:
+            return jsonify([])
         cur.execute("""
             SELECT r.id, r.project_id, r.folder_id, r.file_name, r.file_size, r.file_type, r.created_at
-            FROM students s
-            JOIN student_teams t ON t.id = s.team_id AND t.organization_id = s.organization_id
-            JOIN projects p ON p.id = t.project_id AND p.organization_id = t.organization_id
-            JOIN project_resources r ON r.project_id = p.id AND r.organization_id = p.organization_id
-            WHERE s.id = ? AND s.organization_id = ?
+            FROM project_resources r
+            WHERE r.project_id = ? AND r.organization_id = ?
             ORDER BY r.created_at DESC
-        """, (g.student_id, g.org_id))
+        """, (project_id, g.org_id))
         return jsonify([dict(row) for row in cur.fetchall()])
 
 @app.route("/api/students/resource-folders", methods=["GET", "POST"])
@@ -1891,14 +1940,29 @@ def download_student_project_resource(resource_id):
         _ensure_project_resources_table(db)
         _ensure_project_management_tables(db)
         cur = db.cursor()
-        cur.execute("""
-            SELECT r.project_id
-            FROM students s
-            JOIN student_teams t ON t.id = s.team_id AND t.organization_id = s.organization_id
-            JOIN projects p ON p.id = t.project_id AND p.organization_id = t.organization_id
-            JOIN project_resources r ON r.project_id = p.id AND r.organization_id = p.organization_id
-            WHERE s.id = ? AND s.organization_id = ? AND r.id = ?
-        """, (g.student_id, g.org_id, resource_id))
+        if g.role == "admin":
+            cur.execute("""
+                SELECT r.project_id
+                FROM project_resources r
+                WHERE r.id = ? AND r.organization_id = ?
+            """, (resource_id, g.org_id))
+        elif g.role == "teacher":
+            cur.execute("""
+                SELECT r.project_id
+                FROM project_resources r
+                JOIN projects p ON p.id = r.project_id AND p.organization_id = ?
+                JOIN project_professors pp ON pp.project_id = p.id AND pp.professor_id = ?
+                WHERE r.id = ? AND r.organization_id = ?
+            """, (g.org_id, g.student_id, resource_id, g.org_id))
+        else:
+            cur.execute("""
+                SELECT r.project_id
+                FROM students s
+                JOIN student_teams t ON t.id = s.team_id AND t.organization_id = s.organization_id
+                JOIN projects p ON p.id = t.project_id AND p.organization_id = t.organization_id
+                JOIN project_resources r ON r.project_id = p.id AND r.organization_id = p.organization_id
+                WHERE s.id = ? AND s.organization_id = ? AND r.id = ?
+            """, (g.student_id, g.org_id, resource_id))
         resource = cur.fetchone()
     if not resource:
         return jsonify({"error": "Project resource not found"}), 404
@@ -2889,6 +2953,33 @@ def admin_get_project_deliverables(project_id):
             params.append(team_id)
         dels = [dict(row) for row in db.execute(query, params).fetchall()]
         return jsonify({"deliverables": dels})
+
+@app.route("/api/projects/<project_id>/deliverables/<deliverable_id>/download", methods=["GET"])
+@require_student_auth
+def download_project_deliverable(project_id, deliverable_id):
+    with sqlite3.connect(DB_PATH) as db:
+        db.row_factory = sqlite3.Row
+        cur = db.cursor()
+        cur.execute("SELECT * FROM project_deliverables WHERE id = ? AND project_id = ? AND organization_id = ?", (deliverable_id, project_id, g.org_id))
+        deliv = cur.fetchone()
+        if not deliv:
+            return jsonify({"error": "Deliverable not found"}), 404
+        file_id = deliv["file_id"]
+        if not file_id:
+            return jsonify({"error": "No file attached to this deliverable"}), 404
+        cur.execute("SELECT file_path, file_name FROM student_files WHERE id = ? AND organization_id = ?", (file_id, g.org_id))
+        f_rec = cur.fetchone()
+        if not f_rec:
+            cur.execute("SELECT file_path, file_name FROM project_resources WHERE id = ? AND organization_id = ?", (file_id, g.org_id))
+            f_rec = cur.fetchone()
+        if not f_rec:
+            return jsonify({"error": "File not found"}), 404
+        return _download_reference(f_rec["file_path"], f_rec["file_name"])
+
+@app.route("/api/admin/projects/<project_id>/deliverables/<deliverable_id>/download", methods=["GET"])
+@require_admin_auth
+def admin_download_project_deliverable(project_id, deliverable_id):
+    return download_project_deliverable(project_id, deliverable_id)
 
 @app.route("/api/stream-ticket", methods=["POST"])
 @require_student_auth
