@@ -179,6 +179,17 @@ def _ensure_core_tables():
                 file_path TEXT,
                 uploaded_by TEXT,
                 folder_id TEXT,
+                uploaded_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS student_file_folders (
+                id TEXT PRIMARY KEY,
+                team_id TEXT NOT NULL,
+                organization_id TEXT NOT NULL,
+                name TEXT NOT NULL,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -192,16 +203,21 @@ def _ensure_core_tables():
         """)
 
         for table_name, columns in {
-            "projects": ["created_by"],
-            "students": ["team_id", "password_hash", "organization_id"],
-            "student_teams": ["passcode"],
-            "student_files": ["organization_id", "folder_id"],
-            "project_professors": ["professor_id"]
+            "projects": {"created_by": "TEXT"},
+            "professors": {"passcode_hash": "TEXT", "otp_code": "TEXT", "otp_expiry": "TEXT"},
+            "students": {"team_id": "TEXT", "password_hash": "TEXT", "organization_id": "TEXT"},
+            "student_teams": {"passcode": "TEXT"},
+            "student_files": {"organization_id": "TEXT", "folder_id": "TEXT", "uploaded_at": "TEXT"},
+            "project_professors": {"professor_id": "TEXT"}
         }.items():
             existing = {row[1] for row in cur.execute(f"PRAGMA table_info({table_name})").fetchall()}
-            for col in columns:
+            for col, column_type in columns.items():
                 if col not in existing:
-                    cur.execute(f"ALTER TABLE {table_name} ADD COLUMN {col} TEXT")
+                    cur.execute(f"ALTER TABLE {table_name} ADD COLUMN {col} {column_type}")
+
+        file_columns = {row[1] for row in cur.execute("PRAGMA table_info(student_files)").fetchall()}
+        if "created_at" in file_columns:
+            cur.execute("UPDATE student_files SET uploaded_at = created_at WHERE uploaded_at IS NULL")
 
         db.commit()
 
@@ -470,9 +486,55 @@ def _ensure_project_management_tables(db):
             dependency_type TEXT DEFAULT 'Finish-to-Start',
             reason TEXT DEFAULT '',
             expected_date TEXT,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            status TEXT,
+            request_from_team_id TEXT,
+            request_from_wp_id TEXT,
+            request_from_act_id TEXT,
+            request_what_needed TEXT
         )
     ''')
+
+    required_columns = {
+        "project_tasks": {
+            "activity_id": "TEXT", "description": "TEXT", "owner_student_id": "TEXT",
+            "start_date": "TEXT", "end_date": "TEXT", "status": "TEXT",
+            "priority": "TEXT", "created_at": "TEXT"
+        },
+        "work_packages": {
+            "team_id": "TEXT", "name": "TEXT", "description": "TEXT", "created_at": "TEXT"
+        },
+        "activities": {
+            "work_package_id": "TEXT", "name": "TEXT", "description": "TEXT", "created_at": "TEXT"
+        },
+        "project_deliverables": {
+            "team_id": "TEXT", "task_id": "TEXT", "name": "TEXT", "status": "TEXT",
+            "deadline": "TEXT", "owner_student_id": "TEXT", "file_id": "TEXT",
+            "version": "INTEGER", "submitted_at": "TEXT", "review_status": "TEXT",
+            "feedback": "TEXT", "created_at": "TEXT"
+        },
+        "project_dependencies": {
+            "from_task_id": "TEXT", "to_task_id": "TEXT", "dependency_type": "TEXT",
+            "reason": "TEXT", "expected_date": "TEXT", "created_at": "TEXT",
+            "status": "TEXT", "request_from_team_id": "TEXT", "request_from_wp_id": "TEXT",
+            "request_from_act_id": "TEXT", "request_what_needed": "TEXT"
+        }
+    }
+    for table_name, columns in required_columns.items():
+        existing = {row[1] for row in db.execute(f"PRAGMA table_info({table_name})").fetchall()}
+        for column_name, column_type in columns.items():
+            if column_name not in existing:
+                db.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+
+
+def _ensure_runtime_tables():
+    with sqlite3.connect(DB_PATH) as db:
+        _ensure_project_resources_table(db)
+        _ensure_project_management_tables(db)
+        db.commit()
+
+
+_ensure_runtime_tables()
 
 
 
@@ -2736,9 +2798,10 @@ def admin_get_project_deliverables(project_id):
         db.row_factory = sqlite3.Row
         query = "SELECT * FROM project_deliverables WHERE project_id = ? AND organization_id = ?"
         params = [project_id, g.org_id]
-        if g.project_team_id:
+        team_id = request.args.get("team_id")
+        if team_id:
             query += " AND team_id = ?"
-            params.append(g.project_team_id)
+            params.append(team_id)
         dels = [dict(row) for row in db.execute(query, params).fetchall()]
         return jsonify({"deliverables": dels})
 
