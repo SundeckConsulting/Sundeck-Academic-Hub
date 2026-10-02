@@ -1211,7 +1211,7 @@ activeDropdown: null,
                     }
                 },
 
-                async fetchPrivacyChoices() {
+                async fetchPrivacyChoices(refreshWorkspace = true, keepSettingsOpen = false) {
                     const res = await fetch('/api/students/consent', {
                         headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                     });
@@ -1222,8 +1222,8 @@ activeDropdown: null,
                     this.marketingChoiceRequired = data.marketing_choice_required;
                     this.privacyNoticeAcknowledged = !data.required;
                     this.marketingUseConsent = data.marketing_use;
-                    this.consentScreenOpen = data.required || data.marketing_choice_required;
-                    if (!data.required) {
+                    this.consentScreenOpen = data.required || data.marketing_choice_required || keepSettingsOpen;
+                    if (!data.required && refreshWorkspace) {
                         await this.fetchTeam();
                         await this.fetchProjectResources();
                         await this.fetchProjectResourceFolders();
@@ -1233,8 +1233,8 @@ activeDropdown: null,
                 },
 
                 async openPrivacyChoices() {
-                    await this.fetchPrivacyChoices();
-                    if (!this.consentRequired) this.consentScreenOpen = true;
+                    this.consentScreenOpen = true;
+                    await this.fetchPrivacyChoices(false, true);
                 },
 
                 async savePrivacyChoices() {
