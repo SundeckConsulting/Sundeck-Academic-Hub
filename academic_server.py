@@ -1426,7 +1426,7 @@ def get_students():
 def update_or_delete_student(student_id):
     with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
-        cur.execute("SELECT id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
+        cur.execute("SELECT id FROM students WHERE id = ? AND organization_id = ?", (student_id, g.org_id))
         if not cur.fetchone():
             return jsonify({"error": "Student not found"}), 404
         if request.method == "PUT":
@@ -1441,7 +1441,7 @@ def update_or_delete_student(student_id):
                 return jsonify({"success": True})
             except sqlite3.IntegrityError:
                 return jsonify({"error": "Student email already exists"}), 400
-        cur.execute("DELETE FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
+        cur.execute("DELETE FROM students WHERE id = ? AND organization_id = ?", (student_id, g.org_id))
         db.commit()
     return jsonify({"success": True})
 
