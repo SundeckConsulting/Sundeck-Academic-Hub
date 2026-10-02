@@ -1034,6 +1034,37 @@
 
 </div>
 
+<div x-show="assignmentModalOpen" x-cloak @keydown.escape.window="!assignmentLoading && (assignmentModalOpen = false)" @click.self="!assignmentLoading && (assignmentModalOpen = false)" role="dialog" aria-modal="true" aria-labelledby="assignment-modal-title" class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/50 p-4">
+    <form @submit.prevent="saveTeacherAssignments()" class="w-full max-w-lg overflow-hidden rounded-xl bg-white shadow-xl">
+        <div class="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+            <div>
+                <h2 id="assignment-modal-title" class="text-lg font-bold text-slate-900">Assign Projects</h2>
+                <p class="mt-1 text-sm text-slate-500" x-text="assignmentTeacher ? assignmentTeacher.name : ''"></p>
+            </div>
+            <button type="button" @click="assignmentModalOpen = false" :disabled="assignmentLoading" aria-label="Close" class="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+        <div class="max-h-[60vh] space-y-2 overflow-y-auto px-6 py-5">
+            <template x-for="project in projects" :key="project.id">
+                <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 px-4 py-3 hover:border-orange-300 hover:bg-orange-50/40">
+                    <input type="checkbox" x-model="assignmentProjectIds" :value="String(project.id)" :disabled="assignmentLoading" class="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500">
+                    <span class="text-sm font-medium text-slate-800" x-text="project.name"></span>
+                </label>
+            </template>
+            <p x-show="projects.length === 0" class="py-8 text-center text-sm text-slate-500">No projects are available to assign.</p>
+            <p x-show="assignmentError" x-text="assignmentError" role="alert" class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"></p>
+        </div>
+        <div class="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
+            <button type="button" @click="assignmentModalOpen = false" :disabled="assignmentLoading" class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
+            <button type="submit" :disabled="assignmentLoading || projects.length === 0" class="btn-primary flex items-center gap-2 rounded px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60">
+                <span x-show="assignmentLoading" class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                <span x-text="assignmentLoading ? 'Saving...' : 'Save Assignments'"></span>
+            </button>
+        </div>
+    </form>
+</div>
+
 <div x-show="sessionWarning" x-cloak role="dialog" aria-modal="true" aria-labelledby="session-warning-title" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 p-4">
     <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
         <h2 id="session-warning-title" class="text-lg font-bold text-slate-900">Session expiring soon</h2>
@@ -1175,6 +1206,11 @@
                 editingTeacherId: null,
                 teacherEditName: '',
                 teacherEditEmail: '',
+                assignmentModalOpen: false,
+                assignmentTeacher: null,
+                assignmentProjectIds: [],
+                assignmentLoading: false,
+                assignmentError: '',
                 
                 selectedTeam: null,
                 selectedTeamNameEdit: '',
@@ -1694,6 +1730,39 @@
                     const data = await res.json();
                     if(data.error) alert(data.error);
                     else this.fetchOrgProjects();
+                },
+
+                openAssignmentModal(teacher) {
+                    this.assignmentTeacher = teacher;
+                    this.assignmentProjectIds = (teacher.projects || []).map(project => String(project.id));
+                    this.assignmentError = '';
+                    this.assignmentModalOpen = true;
+                },
+
+                async saveTeacherAssignments() {
+                    if (!this.assignmentTeacher || this.assignmentLoading) return;
+                    this.assignmentLoading = true;
+                    this.assignmentError = '';
+                    try {
+                        const response = await fetch(`/api/admin/teachers/${encodeURIComponent(this.assignmentTeacher.id)}/projects`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + this.token
+                            },
+                            body: JSON.stringify({project_ids: this.assignmentProjectIds})
+                        });
+                        const data = await response.json().catch(() => ({}));
+                        if (response.status === 401) return this.logout();
+                        if (!response.ok || data.error) throw new Error(data.error || 'Unable to assign projects');
+                        this.assignmentModalOpen = false;
+                        this.assignmentTeacher = null;
+                        await Promise.all([this.fetchTeachers(), this.fetchOrgProjects()]);
+                    } catch (error) {
+                        this.assignmentError = error.message || 'Unable to assign projects';
+                    } finally {
+                        this.assignmentLoading = false;
+                    }
                 },
 
                 async unassignTeacher(projectId, teacherId) {
