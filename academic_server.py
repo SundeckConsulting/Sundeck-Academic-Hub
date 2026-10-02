@@ -1766,7 +1766,15 @@ def get_teacher_projects():
         
         for p in projects:
             cur.execute("SELECT id, name, project_id FROM student_teams WHERE project_id = ? AND organization_id = ?", (p['id'], g.org_id))
-            p['teams'] = [dict(r) for r in cur.fetchall()]
+            p['teams'] = [dict(row) for row in cur.fetchall()]
+            for team in p['teams']:
+                cur.execute("""
+                    SELECT id, name, email, team_id
+                    FROM students
+                    WHERE team_id = ? AND organization_id = ?
+                    ORDER BY name COLLATE NOCASE, id
+                """, (team['id'], g.org_id))
+                team['members'] = [dict(member) for member in cur.fetchall()]
             
         return jsonify(projects)
 

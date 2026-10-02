@@ -139,7 +139,7 @@
                     <p class="mt-2 text-slate-500" x-text="team.name || 'Your project workspace'"></p>
                 </div>
                 <div class="flex gap-3 self-start sm:self-auto">
-                    <button x-show="viewState === 'dashboard' && !isEmbed" @click="viewState = 'projects'; team = {};" class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 flex items-center gap-2">
+                    <button x-show="viewState === 'dashboard' && !isEmbed" @click="backToProjects()" class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                         Back to Projects
                     </button>
@@ -1222,16 +1222,40 @@ activeDropdown: null,
                 },
                 
                 async selectTeam(t) {
-                    if (!t || !t.id || !t.project_id) return;
-                    this.selectedTeamId = t.id;
+                    if (!this.token) return this.logout(true);
+                    if (!t?.id || !t?.project_id) return;
+                    const selectedTeamId = String(t.id);
+                    const selectedTeam = {
+                        ...t,
+                        members: Array.isArray(t.members) ? t.members : []
+                    };
+                    this.selectedTeamId = selectedTeamId;
                     this.viewState = 'dashboard';
-                    this.team = t; 
-                    await this.fetchProjectData();
-                    await this.fetchProjectResources();
-                    await this.fetchProjectResourceFolders();
+                    this.team = selectedTeam;
+                    await this.fetchProjectData(selectedTeam);
+                    if (String(this.team?.id) !== selectedTeamId) return;
+                    await this.fetchProjectResources(selectedTeamId);
+                    if (String(this.team?.id) !== selectedTeamId) return;
+                    await this.fetchProjectResourceFolders(selectedTeamId);
+                    if (String(this.team?.id) !== selectedTeamId) return;
                     await this.fetchDeliverableFolders();
+                    if (String(this.team?.id) !== selectedTeamId) return;
                     await this.fetchFiles();
                     this.initRealtime();
+                },
+
+                backToProjects() {
+                    this.viewState = 'projects';
+                    this.selectedTeamId = '';
+                    this.team = {name: '', members: [], project_id: null};
+                    if (this.eventSource) {
+                        this.eventSource.close();
+                        this.eventSource = null;
+                    }
+                    this.files = [];
+                    this.deliverableFolders = [];
+                    this.projectResources = [];
+                    this.projectResourceFolders = [];
                 },
 
 
@@ -1871,16 +1895,21 @@ filteredDeliverables() {
                         alert(data.error || 'Failed to save task');
                     }
                 },
-async fetchProjectData() {
-                    if (!this.team.project_id) return;
-                    await this.fetchAllTeams();
-                    let res = await fetch(`/api/projects/${this.team.project_id}/tasks`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+async fetchProjectData(team = this.team) {
+                    const projectId = team?.project_id;
+                    if (!this.token || !team?.id || !projectId) return;
+                    await this.fetchAllTeams(projectId);
+                    if (String(this.team?.id) !== String(team.id)) return;
+                    let res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/tasks`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                     if(res.ok) { let d = await res.json(); this.projectTasks = d.tasks.filter(t => t.activity_id); }
-                    res = await fetch(`/api/projects/${this.team.project_id}/dependencies`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                    if (String(this.team?.id) !== String(team.id)) return;
+                    res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/dependencies`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                     if(res.ok) { let d = await res.json(); this.projectDependencies = d.dependencies; }
-                    res = await fetch(`/api/projects/${this.team.project_id}/work_packages`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                    if (String(this.team?.id) !== String(team.id)) return;
+                    res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/work_packages`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                     if(res.ok) { let d = await res.json(); this.workPackages = d.work_packages; }
-                    res = await fetch(`/api/projects/${this.team.project_id}/activities`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                    if (String(this.team?.id) !== String(team.id)) return;
+                    res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/activities`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                     if(res.ok) { let d = await res.json(); this.activities = d.activities; }
                 },
                 
@@ -2051,24 +2080,30 @@ async fetchProjectData() {
                 },
 
 
-                async fetchProjectResources() {
-                    const res = await fetch(`/api/students/resources?team_id=${this.team.id}`, {
+                async fetchProjectResources(teamId = this.team?.id) {
+                    if (!this.token || !teamId) {
+                        this.projectResources = [];
+                        return;
+                    }
+                    const res = await fetch(`/api/students/resources?team_id=${encodeURIComponent(teamId)}`, {
                         headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                     });
                     if (res.status === 401) return this.logout(true);
-                    const data = await res.json();
-                    if (!res.ok) return alert(data.error || 'Unable to load shared project resources');
-                    this.projectResources = data;
+                    const data = await res.json().catch(() => null);
+                    this.projectResources = res.ok && Array.isArray(data) ? data : [];
                 },
 
-                async fetchProjectResourceFolders() {
-                    const res = await fetch(`/api/students/resource-folders?team_id=${this.team.id}`, {
+                async fetchProjectResourceFolders(teamId = this.team?.id) {
+                    if (!this.token || !teamId) {
+                        this.projectResourceFolders = [];
+                        return;
+                    }
+                    const res = await fetch(`/api/students/resource-folders?team_id=${encodeURIComponent(teamId)}`, {
                         headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                     });
                     if (res.status === 401) return this.logout(true);
-                    const data = await res.json();
-                    if (!res.ok) return alert(data.error || 'Unable to load folders');
-                    this.projectResourceFolders = data;
+                    const data = await res.json().catch(() => null);
+                    this.projectResourceFolders = res.ok && Array.isArray(data) ? data : [];
                 },
 
                 async downloadProjectResource(resource) {
