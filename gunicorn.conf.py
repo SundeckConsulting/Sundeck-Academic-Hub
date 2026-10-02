@@ -3,6 +3,6 @@ worker_class = "gevent"
 workers = 1
 preload_app = False
 worker_connections = 1000
-timeout = 120
+timeout = 300
 accesslog = None
 errorlog = "-"
