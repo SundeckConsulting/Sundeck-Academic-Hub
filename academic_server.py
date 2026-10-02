@@ -205,7 +205,10 @@ def _ensure_core_tables():
         for table_name, columns in {
             "projects": {"created_by": "TEXT"},
             "professors": {"passcode_hash": "TEXT", "otp_code": "TEXT", "otp_expiry": "TEXT"},
-            "students": {"team_id": "TEXT", "password_hash": "TEXT", "organization_id": "TEXT"},
+            "students": {
+                "team_id": "TEXT", "password_hash": "TEXT", "organization_id": "TEXT",
+                "otp_code": "TEXT", "otp_expiry": "TEXT"
+            },
             "student_teams": {"passcode": "TEXT"},
             "student_files": {"organization_id": "TEXT", "folder_id": "TEXT", "uploaded_at": "TEXT"},
             "project_professors": {"professor_id": "TEXT"}

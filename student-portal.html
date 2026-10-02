@@ -1158,16 +1158,20 @@ activeDropdown: null,
 
                 async requestOtp() {
                     if(!this.email) return alert('Enter email');
-                    const res = await fetch('/api/students/auth/request-otp', {
-                        method: 'POST',
-                        headers: {'Content-Type':'application/json'},
-                        body: JSON.stringify({email: this.email})
-                    });
-                    const data = await res.json();
-                    if(data.error) alert(data.error);
-                    else {
+                    try {
+                        const res = await fetch('/api/students/auth/request-otp', {
+                            method: 'POST',
+                            headers: {'Content-Type':'application/json'},
+                            body: JSON.stringify({email: this.email.trim()})
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok || data.error) {
+                            return alert(data.error || 'Unable to send a secure code. Please try again.');
+                        }
                         if(data.message) alert(data.message);
                         this.otpSent = true;
+                    } catch (error) {
+                        alert('Unable to send a secure code. Check your connection and try again.');
                     }
                 },
 
