@@ -472,7 +472,7 @@ def _resolve_project_access(db, project_id, requested_team_id=None):
 
 @app.route("/assets/<path:filename>")
 def serve_assets(filename):
-    asset_directory = os.path.join(os.path.dirname(__file__), "..", "frontend", "assets")
+    asset_directory = os.path.join(os.path.dirname(__file__), "assets")
     return send_from_directory(asset_directory, filename)
 
 @app.route("/i18n.js", methods=["GET"])

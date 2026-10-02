@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="Sundeck Academic Hub logo">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FF8C1A"/>
+      <stop offset="100%" stop-color="#F97316"/>
+    </linearGradient>
+  </defs>
+  <rect width="160" height="160" rx="34" fill="url(#bg)"/>
+  <rect x="42" y="26" width="76" height="92" rx="18" fill="rgba(255,255,255,0.16)"/>
+  <path d="M80 30 L116 52 L116 101 L80 123 L44 101 L44 52 Z" fill="none" stroke="white" stroke-width="8" opacity="0.95"/>
+  <path d="M80 46 L101 59 L101 86 L80 99 L59 86 L59 59 Z" fill="white" opacity="0.18"/>
+  <path d="M80 50 L96 60 L96 85 L80 95 L64 85 L64 60 Z" fill="white" opacity="0.92"/>
+  <path d="M75 74 L80 70 L85 74 L85 89 L80 93 L75 89 Z" fill="#F97316"/>
+  <circle cx="80" cy="58" r="6.5" fill="#F97316"/>
+  <text x="80" y="136" text-anchor="middle" font-size="28" font-weight="700" fill="white" font-family="Arial, Helvetica, sans-serif">SU</text>
+</svg>
