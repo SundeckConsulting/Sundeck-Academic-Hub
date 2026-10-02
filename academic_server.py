@@ -100,6 +100,9 @@ class RealtimeManager:
                         pass
 
 realtime_manager = RealtimeManager()
+STREAM_TICKET_TTL_SECONDS = 30
+stream_tickets = {}
+stream_ticket_lock = threading.Lock()
 
 app = Flask(__name__, static_folder="frontend", static_url_path="")
 app.config["MAX_CONTENT_LENGTH"] = 52 * 1024 * 1024
@@ -1627,6 +1630,7 @@ def require_student_auth(f):
             g.org_id = payload.get("organization_id")
             g.role = payload.get("role")
             g.student_id = payload["sub"]
+            g.session_id = payload.get("sid")
             if g.role == "student" and request.endpoint != "student_consent":
                 with sqlite3.connect(DB_PATH) as db:
                     notice = _latest_student_consent(db, g.student_id, "privacy_notice_ack")
@@ -2816,39 +2820,74 @@ def admin_get_project_deliverables(project_id):
         dels = [dict(row) for row in db.execute(query, params).fetchall()]
         return jsonify({"deliverables": dels})
 
-@app.route("/api/stream", methods=["GET"])
+@app.route("/api/stream-ticket", methods=["POST"])
 @require_student_auth
+def create_stream_ticket():
+    data = request.get_json(silent=True) or {}
+    requested_team_id = data.get("team_id")
+    with sqlite3.connect(DB_PATH) as db:
+        team_id = _get_accessible_team_id(db, requested_team_id)
+        if not team_id:
+            return jsonify({"error": "Team not found or access denied"}), 403
+        team = db.execute(
+            "SELECT project_id FROM student_teams WHERE id = ? AND organization_id = ?",
+            (team_id, g.org_id),
+        ).fetchone()
+        if not team:
+            return jsonify({"error": "Team not found"}), 404
+
+    now = time.time()
+    ticket = secrets.token_urlsafe(32)
+    with stream_ticket_lock:
+        expired_tickets = [key for key, value in stream_tickets.items() if value["expires_at"] <= now]
+        for key in expired_tickets:
+            del stream_tickets[key]
+        stream_tickets[ticket] = {
+            "session_id": g.session_id,
+            "role": g.role,
+            "student_id": g.student_id,
+            "organization_id": g.org_id,
+            "team_id": team_id,
+            "project_id": team[0],
+            "expires_at": now + STREAM_TICKET_TTL_SECONDS,
+        }
+    return jsonify({"ticket": ticket}), 201
+
+
+@app.route("/api/stream", methods=["GET"])
 
 def stream_events():
-    student_id = g.student_id
-    org_id = g.org_id
+    ticket = request.args.get("ticket", "")
+    with stream_ticket_lock:
+        ticket_data = stream_tickets.pop(ticket, None) if ticket else None
+    if not ticket_data or ticket_data["expires_at"] <= time.time():
+        return jsonify({"error": "Stream ticket is invalid or expired"}), 401
+
+    session_payload = {
+        "sid": ticket_data["session_id"],
+        "role": ticket_data["role"],
+        "organization_id": ticket_data["organization_id"],
+    }
+    if not _touch_session(session_payload):
+        return jsonify({"error": "Session expired"}), 401
+
+    student_id = ticket_data["student_id"]
+    org_id = ticket_data["organization_id"]
     client_id = request.args.get('client_id')
+    g.org_id = org_id
+    g.role = ticket_data["role"]
+    g.student_id = student_id
     with sqlite3.connect(DB_PATH) as db:
-        db.row_factory = sqlite3.Row
-        cur = db.cursor()
-        
-        req_team = request.args.get('team_id')
-        if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
-            team_id = _get_accessible_team_id(db, req_team)
-            if not team_id:
-                return jsonify({"error": "Team not found"}), 404
-            cur.execute("SELECT project_id FROM student_teams WHERE id = ? AND organization_id = ?", (team_id, org_id))
-            row = cur.fetchone()
-            if not row: return jsonify({"error": "Team not found"}), 404
-            project_id = row["project_id"]
-        else:
-            cur.execute("""
-                SELECT t.id AS team_id, t.project_id
-                FROM students s
-                JOIN student_teams t ON s.team_id = t.id AND t.organization_id = s.organization_id
-                JOIN projects p ON p.id = t.project_id AND p.organization_id = t.organization_id
-                WHERE s.id = ? AND s.organization_id = ?
-            """, (student_id, org_id))
-            row = cur.fetchone()
-            if not row:
-                return jsonify({"error": "Student not found"}), 404
-            project_id = row["project_id"]
-            team_id = row["team_id"]
+        team_id = _get_accessible_team_id(db, ticket_data["team_id"])
+        if not team_id:
+            return jsonify({"error": "Team not found or access denied"}), 403
+        team = db.execute(
+            "SELECT project_id FROM student_teams WHERE id = ? AND organization_id = ?",
+            (team_id, org_id),
+        ).fetchone()
+        if not team or team[0] != ticket_data["project_id"]:
+            return jsonify({"error": "Project access changed"}), 403
+        project_id = team[0]
 
 
     def event_stream():

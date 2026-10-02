@@ -985,22 +985,42 @@
                 eventSource: null,
                 clientId: crypto.randomUUID(),
 
-                initRealtime() {
+                async initRealtime() {
+                    const teamId = this.team?.id;
+                    if (!this.token || !teamId) return;
                     if (this.eventSource) this.eventSource.close();
+                    this.eventSource = null;
                     this.realtimeStatus = 'connecting';
-                    this.eventSource = new EventSource('/api/stream?token=' + this.token + '&client_id=' + this.clientId);
-                    
-                    this.eventSource.onopen = () => {
+                    try {
+                        const ticketResponse = await fetch('/api/stream-ticket', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token},
+                            body: JSON.stringify({team_id: teamId})
+                        });
+                        const ticketData = await ticketResponse.json().catch(() => ({}));
+                        if (ticketResponse.status === 401) return this.logout(true);
+                        if (!ticketResponse.ok || !ticketData.ticket) {
+                            this.realtimeStatus = 'disconnected';
+                            return;
+                        }
+                        if (String(this.team?.id) !== String(teamId)) return;
+                        const source = new EventSource(`/api/stream?ticket=${encodeURIComponent(ticketData.ticket)}&client_id=${encodeURIComponent(this.clientId)}`);
+                        this.eventSource = source;
+                        source.onopen = () => {
                         this.realtimeStatus = 'live';
-                    };
+                        };
                     
-                    this.eventSource.onerror = () => {
+                        source.onerror = () => {
+                            if (this.eventSource !== source) return;
                         this.realtimeStatus = 'disconnected';
-                        this.eventSource.close();
-                        setTimeout(() => this.initRealtime(), 5000);
-                    };
+                            source.close();
+                            this.eventSource = null;
+                            setTimeout(() => {
+                                if (String(this.team?.id) === String(teamId)) this.initRealtime();
+                            }, 5000);
+                        };
 
-                    this.eventSource.onmessage = async (e) => {
+                        source.onmessage = async (e) => {
                         try {
                             const event = JSON.parse(e.data);
                             if (event.type === 'CONNECTED') {
@@ -1036,7 +1056,14 @@
                                 }, 5000);
                             }
                         } catch (err) {}
-                    };
+                        };
+                    } catch (error) {
+                        this.realtimeStatus = 'disconnected';
+                        console.error('Realtime connection failed', error);
+                        setTimeout(() => {
+                            if (String(this.team?.id) === String(teamId)) this.initRealtime();
+                        }, 5000);
+                    }
                 },
 
                 dismissToast(id) {
@@ -1133,7 +1160,6 @@ activeDropdown: null,
                     if (this.token) {
                         this.startSessionMonitor();
                         this.fetchPrivacyChoices();
-                        this.initRealtime();
                     }
                 },
 
@@ -1924,6 +1950,7 @@ async fetchProjectData() {
                     if (!res.ok) return alert(data.error || 'Unable to load your team');
                     this.team = data;
                     await this.fetchProjectData();
+                    this.initRealtime();
                 },
 
                 async fetchProjectResources() {
