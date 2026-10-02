@@ -104,6 +104,110 @@ realtime_manager = RealtimeManager()
 app = Flask(__name__, static_folder="frontend", static_url_path="")
 app.config["MAX_CONTENT_LENGTH"] = 52 * 1024 * 1024
 
+
+def _ensure_core_tables():
+    with sqlite3.connect(DB_PATH) as db:
+        cur = db.cursor()
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS organizations (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                type TEXT DEFAULT 'University',
+                short_name TEXT,
+                country TEXT,
+                city TEXT,
+                status TEXT DEFAULT 'active',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                logo_url TEXT
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS projects (
+                id TEXT PRIMARY KEY,
+                organization_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                created_by TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS professors (
+                id TEXT PRIMARY KEY,
+                organization_id TEXT NOT NULL,
+                name TEXT,
+                email TEXT,
+                password_hash TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS students (
+                id TEXT PRIMARY KEY,
+                organization_id TEXT NOT NULL,
+                team_id TEXT,
+                email TEXT,
+                name TEXT,
+                password_hash TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS student_teams (
+                id TEXT PRIMARY KEY,
+                organization_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                passcode TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS student_files (
+                id TEXT PRIMARY KEY,
+                organization_id TEXT NOT NULL,
+                team_id TEXT NOT NULL,
+                file_name TEXT NOT NULL,
+                file_size INTEGER,
+                file_type TEXT,
+                file_path TEXT,
+                uploaded_by TEXT,
+                folder_id TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS project_professors (
+                project_id TEXT NOT NULL,
+                professor_id TEXT NOT NULL,
+                PRIMARY KEY (project_id, professor_id)
+            )
+        """)
+
+        for table_name, columns in {
+            "projects": ["created_by"],
+            "students": ["team_id", "password_hash", "organization_id"],
+            "student_teams": ["passcode"],
+            "student_files": ["organization_id", "folder_id"],
+            "project_professors": ["professor_id"]
+        }.items():
+            existing = {row[1] for row in cur.execute(f"PRAGMA table_info({table_name})").fetchall()}
+            for col in columns:
+                if col not in existing:
+                    cur.execute(f"ALTER TABLE {table_name} ADD COLUMN {col} TEXT")
+
+        db.commit()
+
+
+_ensure_core_tables()
+
 APP_ENV = os.environ.get("APP_ENV", "development").strip().lower()
 storage_service = ObjectStorageService()
 if APP_ENV == "production" and not storage_service.is_enabled:
