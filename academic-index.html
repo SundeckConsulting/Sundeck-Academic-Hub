@@ -3,12 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sundeck Academic Hub | Enterprise</title>
+    <title>Sundeck Academic Hub | Sichere Plattform für universitäre Projektarbeit</title>
+    <meta name="description" content="Sundeck Academic Hub – Die sichere Kollaborationsplattform für universitäre Projektarbeit, Kursverwaltung und DSGVO-konforme Zusammenarbeit zwischen Studierenden, Lehrenden und Administratoren.">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#FF7A00">
+    <link rel="canonical" href="https://hub.sundeck-consulting.de/">
+    <link rel="alternate" hreflang="x-default" href="https://hub.sundeck-consulting.de/">
+    <link rel="alternate" hreflang="de" href="https://hub.sundeck-consulting.de/">
+    <link rel="alternate" hreflang="en" href="https://hub.sundeck-consulting.de/">
+
+    <!-- Favicon & Touch Icons -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+    <!-- Open Graph / Social Sharing -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://hub.sundeck-consulting.de/">
+    <meta property="og:title" content="Sundeck Academic Hub | Sichere Plattform für universitäre Projektarbeit">
+    <meta property="og:description" content="Sundeck Academic Hub – Die sichere Kollaborationsplattform für universitäre Projektarbeit, Kursverwaltung und DSGVO-konforme Zusammenarbeit.">
+    <meta property="og:image" content="https://hub.sundeck-consulting.de/assets/LOGO%202.png">
+    <meta property="og:site_name" content="Sundeck Academic Hub">
+    <meta property="og:locale" content="de_DE">
+    <meta property="og:locale:alternate" content="en_US">
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://hub.sundeck-consulting.de/">
+    <meta name="twitter:title" content="Sundeck Academic Hub | Sichere Plattform für universitäre Projektarbeit">
+    <meta name="twitter:description" content="Sundeck Academic Hub – Die sichere Kollaborationsplattform für universitäre Projektarbeit, Kursverwaltung und DSGVO-konforme Zusammenarbeit.">
+    <meta name="twitter:image" content="https://hub.sundeck-consulting.de/assets/LOGO%202.png">
+
+    <!-- Fonts & Performance Preconnects -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap">
+
+    <!-- Scripts -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="/i18n.js"></script>
+    <script defer src="/i18n.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://hub.sundeck-consulting.de/#website",
+          "url": "https://hub.sundeck-consulting.de/",
+          "name": "Sundeck Academic Hub",
+          "description": "Sichere Kollaborationsplattform für universitäre Projektarbeit, Kursverwaltung und DSGVO-konforme Zusammenarbeit.",
+          "inLanguage": ["de-DE", "en-US"],
+          "publisher": {
+            "@id": "https://hub.sundeck-consulting.de/#organization"
+          }
+        },
+        {
+          "@type": "EducationalOrganization",
+          "@id": "https://hub.sundeck-consulting.de/#organization",
+          "name": "SUNDECK Consulting",
+          "url": "https://sundeck-consulting.de",
+          "logo": "https://hub.sundeck-consulting.de/assets/LOGO%202.png",
+          "founder": {
+            "@type": "Person",
+            "name": "Harald Düster"
+          },
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "Universitätsstraße 3",
+            "addressLocality": "Koblenz",
+            "postalCode": "56070",
+            "addressCountry": "DE"
+          },
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "telephone": "+49-261-8996600",
+            "contactType": "customer service",
+            "email": "info@sundeck-consulting.de"
+          }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://hub.sundeck-consulting.de/#application",
+          "name": "Sundeck Academic Hub",
+          "applicationCategory": "EducationalApplication",
+          "operatingSystem": "All (Web Browser)",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "EUR"
+          },
+          "author": {
+            "@id": "https://hub.sundeck-consulting.de/#organization"
+          }
+        }
+      ]
+    }
+    </script>
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; }
         .enterprise-card {
             background: #FFFFFF;
@@ -35,10 +131,10 @@
     <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
-                <div class="flex items-center gap-3">
-                    <img src="/assets/LOGO%202.png" alt="Sundeck Consulting" class="h-8 max-w-[180px] object-contain" onerror="this.src='https://ui-avatars.com/api/?name=Sundeck&background=FF7A00&color=fff'">
-                    <span class="text-sm font-semibold text-slate-500 tracking-widest uppercase border-l border-slate-300 pl-3">Academic Hub</span>
-                </div>
+                <a href="https://hub.sundeck-consulting.de/" class="flex items-center gap-3 group focus:outline-none focus:ring-2 focus:ring-orange-500 rounded-lg p-1" aria-label="Sundeck Academic Hub Startseite">
+                    <img src="/assets/LOGO%202.png" alt="Sundeck Consulting Logo" width="120" height="32" fetchpriority="high" decoding="async" class="h-8 max-w-[180px] object-contain" onerror="this.src='https://ui-avatars.com/api/?name=Sundeck&background=FF7A00&color=fff'">
+                    <span class="text-sm font-semibold text-slate-500 tracking-widest uppercase border-l border-slate-300 pl-3 group-hover:text-slate-900 transition-colors">Academic Hub</span>
+                </a>
                 <div class="flex items-center gap-4 text-sm font-medium text-slate-500">
                     <div id="lang-toggle-container"></div>
                     <span class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-green-500"></div> System Operational</span>
@@ -62,7 +158,7 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 w-full">
             
             <!-- Student Portal -->
-            <a href="/student-portal" class="enterprise-card rounded-2xl p-8 flex flex-col items-start group cursor-pointer relative overflow-hidden">
+            <a href="/student-portal" aria-label="Student Portal – Zugang zum Studentenportal" class="enterprise-card rounded-2xl p-8 flex flex-col items-start group cursor-pointer relative overflow-hidden">
                 <div class="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-orange-100"></div>
                 <div class="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center mb-6 text-orange-600 relative z-10">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -78,7 +174,7 @@
             </a>
 
             <!-- Teacher Portal -->
-            <a href="/teacher-portal" class="enterprise-card rounded-2xl p-8 flex flex-col items-start group cursor-pointer relative overflow-hidden">
+            <a href="/teacher-portal" aria-label="Teacher Portal – Zugang zum Lehrerportal" class="enterprise-card rounded-2xl p-8 flex flex-col items-start group cursor-pointer relative overflow-hidden">
                 <div class="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-amber-100"></div>
                 <div class="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center mb-6 text-amber-600 relative z-10">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -93,7 +189,7 @@
             </a>
 
             <!-- Admin Portal -->
-            <a href="/admin" class="enterprise-card rounded-2xl p-8 flex flex-col items-start group cursor-pointer relative overflow-hidden border-t-4 border-t-slate-800 md:border-t-px md:border-t-slate-200">
+            <a href="/admin" aria-label="Tenant Admin – Zugang zum Administrationsbereich" class="enterprise-card rounded-2xl p-8 flex flex-col items-start group cursor-pointer relative overflow-hidden border-t-4 border-t-slate-800 md:border-t-px md:border-t-slate-200">
                 <div class="absolute top-0 right-0 w-32 h-32 bg-slate-100 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-slate-200"></div>
                 <div class="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center mb-6 text-slate-700 relative z-10">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -126,12 +222,12 @@
     <footer class="bg-white border-t border-slate-200 mt-auto">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row justify-between items-center text-sm text-slate-500">
             <div class="mb-4 md:mb-0">
-                &copy; 2026 Sundeck Consulting. All rights reserved. Academic Hub Project.
+                &copy; 2026 SUNDECK Consulting &bull; Inhaber: Harald Düster. All rights reserved. Academic Hub.
             </div>
             <div class="flex gap-6">
-                <a href="/legal" class="hover:text-orange-600 transition-colors">Privacy Policy</a>
-                <a href="/legal" class="hover:text-orange-600 transition-colors">Terms of Service</a>
-                <a href="/legal" class="hover:text-orange-600 transition-colors">GDPR Information</a>
+                <a href="/legal#privacy" class="hover:text-orange-600 transition-colors">Privacy Policy</a>
+                <a href="/legal#terms" class="hover:text-orange-600 transition-colors">Terms of Service</a>
+                <a href="/legal#gdpr" class="hover:text-orange-600 transition-colors">GDPR Information</a>
             </div>
         </div>
     </footer>

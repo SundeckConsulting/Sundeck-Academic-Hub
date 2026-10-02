@@ -104,6 +104,34 @@ STREAM_TICKET_TTL_SECONDS = 30
 stream_tickets = {}
 stream_ticket_lock = threading.Lock()
 
+_rate_limit_lock = threading.Lock()
+_rate_limit_records = {}
+
+
+def _get_client_ip():
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.remote_addr or "127.0.0.1"
+
+
+def _check_rate_limit(key, max_attempts=5, window_seconds=600):
+    now = time.time()
+    with _rate_limit_lock:
+        timestamps = _rate_limit_records.get(key, [])
+        timestamps = [t for t in timestamps if now - t < window_seconds]
+        if len(timestamps) >= max_attempts:
+            _rate_limit_records[key] = timestamps
+            return False
+        timestamps.append(now)
+        _rate_limit_records[key] = timestamps
+        if len(_rate_limit_records) > 2000:
+            for k in list(_rate_limit_records.keys()):
+                _rate_limit_records[k] = [t for t in _rate_limit_records[k] if now - t < window_seconds]
+                if not _rate_limit_records[k]:
+                    _rate_limit_records.pop(k, None)
+        return True
+
 app = Flask(__name__, static_folder="frontend", static_url_path="")
 app.config["MAX_CONTENT_LENGTH"] = 52 * 1024 * 1024
 
@@ -652,18 +680,45 @@ def _resolve_project_access(db, project_id, requested_team_id=None):
 # Portals
 
 
+@app.route("/favicon.ico", methods=["GET"])
+def serve_favicon():
+    favicon_path = os.path.join(os.path.dirname(__file__), "assets", "favicon.ico")
+    if not os.path.exists(favicon_path):
+        favicon_path = os.path.join(os.path.dirname(__file__), "favicon.ico")
+    return send_file(favicon_path, mimetype="image/x-icon", max_age=86400)
+
+@app.route("/robots.txt", methods=["GET"])
+def serve_robots():
+    return send_file(os.path.join(os.path.dirname(__file__), "robots.txt"), mimetype="text/plain", max_age=86400)
+
+@app.route("/sitemap.xml", methods=["GET"])
+def serve_sitemap():
+    return send_file(os.path.join(os.path.dirname(__file__), "sitemap.xml"), mimetype="application/xml", max_age=86400)
+
 @app.route("/assets/<path:filename>")
 def serve_assets(filename):
     asset_directory = os.path.join(os.path.dirname(__file__), "assets")
-    return send_from_directory(asset_directory, filename)
+    return send_from_directory(asset_directory, filename, max_age=86400)
 
 @app.route("/i18n.js", methods=["GET"])
 def serve_i18n_js():
-    return send_file(os.path.join(os.path.dirname(__file__), "i18n.js"))
+    return send_file(os.path.join(os.path.dirname(__file__), "i18n.js"), max_age=86400)
 
 @app.route("/legal", methods=["GET"])
 def serve_legal():
     return send_file(os.path.join(os.path.dirname(__file__), "legal.html"))
+
+@app.route("/privacy", methods=["GET"])
+def redirect_privacy():
+    return redirect("/legal#privacy", code=302)
+
+@app.route("/terms", methods=["GET"])
+def redirect_terms():
+    return redirect("/legal#terms", code=302)
+
+@app.route("/gdpr", methods=["GET"])
+def redirect_gdpr():
+    return redirect("/legal#gdpr", code=302)
 
 @app.route("/", methods=["GET"])
 def serve_academic_index():
@@ -695,6 +750,10 @@ def request_teacher_otp():
     if not email:
         return jsonify({"error": "Email is required"}), 400
         
+    client_ip = _get_client_ip()
+    if not _check_rate_limit(f"otp_req_teacher:{client_ip}:{email}", max_attempts=5, window_seconds=600):
+        return jsonify({"error": "Too many access code requests. Please wait 10 minutes before requesting again."}), 429
+        
     with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
@@ -724,6 +783,10 @@ def verify_teacher_otp():
     
     if not email or not otp:
         return jsonify({"error": "Email and OTP required"}), 400
+        
+    client_ip = _get_client_ip()
+    if not _check_rate_limit(f"otp_verify_teacher:{client_ip}:{email}", max_attempts=10, window_seconds=600):
+        return jsonify({"error": "Too many failed attempts. Please request a new code and try again."}), 429
         
     with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
@@ -794,6 +857,10 @@ def require_teacher_auth(f):
 # Admin Login
 @app.route("/api/admin/auth/login", methods=["POST"])
 def admin_login():
+    client_ip = _get_client_ip()
+    if not _check_rate_limit(f"admin_login:{client_ip}", max_attempts=5, window_seconds=600):
+        return jsonify({"error": "Too many failed attempts. Please wait 10 minutes."}), 429
+
     data = request.get_json(silent=True) or {}
     passcode = data.get("passcode")
     
@@ -1578,6 +1645,10 @@ def request_student_otp():
     if not email:
         return jsonify({"error": "Email is required"}), 400
         
+    client_ip = _get_client_ip()
+    if not _check_rate_limit(f"otp_req_student:{client_ip}:{email}", max_attempts=5, window_seconds=600):
+        return jsonify({"error": "Too many access code requests. Please wait 10 minutes before requesting again."}), 429
+        
     with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
@@ -1609,6 +1680,10 @@ def verify_student_otp():
     
     if not email or not otp:
         return jsonify({"error": "Email and OTP required"}), 400
+        
+    client_ip = _get_client_ip()
+    if not _check_rate_limit(f"otp_verify_student:{client_ip}:{email}", max_attempts=10, window_seconds=600):
+        return jsonify({"error": "Too many failed attempts. Please request a new code and try again."}), 429
         
     with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
@@ -3115,7 +3190,62 @@ def after_request_broadcast(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "geolocation=(), camera=(), microphone=(), payment=()")
+    response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    if request.is_secure or request.headers.get("X-Forwarded-Proto", "").lower() == "https" or APP_ENV == "production":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return response
+
+
+@app.errorhandler(400)
+def handle_bad_request(e):
+    if request.path.startswith("/api/"):
+        return jsonify({"error": getattr(e, "description", "Bad Request")}), 400
+    return e
+
+
+@app.errorhandler(401)
+def handle_unauthorized(e):
+    if request.path.startswith("/api/"):
+        return jsonify({"error": getattr(e, "description", "Unauthorized")}), 401
+    return e
+
+
+@app.errorhandler(403)
+def handle_forbidden(e):
+    if request.path.startswith("/api/"):
+        return jsonify({"error": getattr(e, "description", "Forbidden")}), 403
+    return e
+
+
+@app.errorhandler(404)
+def handle_not_found(e):
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "Resource not found"}), 404
+    return e
+
+
+@app.errorhandler(413)
+def handle_payload_too_large(e):
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "Uploaded file exceeds maximum allowed size (50 MB)"}), 413
+    return "File too large (maximum 50 MB allowed)", 413
+
+
+@app.errorhandler(429)
+def handle_too_many_requests(e):
+    if request.path.startswith("/api/"):
+        return jsonify({"error": getattr(e, "description", "Too many requests. Please wait a moment.")}), 429
+    return e
+
+
+@app.errorhandler(500)
+def handle_server_error(e):
+    app.logger.exception("Internal server error on %s", request.path)
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "Internal server error"}), 500
+    return "Internal Server Error", 500
+
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5001, debug=False)

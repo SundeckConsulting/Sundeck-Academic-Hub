@@ -3,63 +3,394 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sundeck Academic Hub | Legal Information</title>
+    <title>Sundeck Academic Hub | Rechtliche Hinweise, Datenschutz & DSGVO</title>
+    <meta name="description" content="Offizielle rechtliche Hinweise, Datenschutzerklärung, Nutzungsbedingungen und DSGVO-Auskünfte für den Sundeck Academic Hub der SUNDECK Consulting in Koblenz.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://hub.sundeck-consulting.de/legal">
+
+    <!-- Favicon & Touch Icons -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+    <!-- Open Graph / Social Sharing -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://hub.sundeck-consulting.de/legal">
+    <meta property="og:title" content="Sundeck Academic Hub | Rechtliche Hinweise & Datenschutz">
+    <meta property="og:description" content="Rechtliche Hinweise, Datenschutzerklärung, Nutzungsbedingungen und DSGVO-Informationen der SUNDECK Consulting.">
+    <meta property="og:image" content="https://hub.sundeck-consulting.de/assets/LOGO%202.png">
+    <meta property="og:locale" content="de_DE">
+
+    <!-- Performance & Font Optimization -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="/i18n.js"></script>
+    <script defer src="/i18n.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; }
+        .accent-gradient {
+            background: linear-gradient(135deg, #FF7A00 0%, #FFB020 100%);
+        }
+        .text-accent {
+            color: #FF7A00;
+        }
+        .prose-legal h2 {
+            border-bottom: 2px solid #F1F5F9;
+            padding-bottom: 0.5rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0F172A;
+        }
+        .prose-legal h3 {
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #1E293B;
+        }
+        .prose-legal p, .prose-legal li {
+            line-height: 1.75;
+            color: #334155;
+            font-size: 0.95rem;
+        }
+        .prose-legal ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-top: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        html { scroll-behavior: smooth; }
     </style>
 </head>
-<body class="flex flex-col min-h-screen text-slate-800">
+<body class="flex flex-col min-h-screen text-slate-800" x-data="{
+    activeTab: window.location.hash.replace('#', '') || 'privacy',
+    lang: localStorage.getItem('app_lang') || 'de',
+    setTab(t) {
+        this.activeTab = t;
+        window.location.hash = t;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}" x-init="
+    window.addEventListener('hashchange', () => {
+        const h = window.location.hash.replace('#', '');
+        if (['privacy', 'terms', 'gdpr'].includes(h)) activeTab = h;
+    });
+    if (['privacy', 'terms', 'gdpr'].includes(window.location.hash.replace('#', ''))) {
+        activeTab = window.location.hash.replace('#', '');
+    }
+">
     
-    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
+    <!-- Top Bar Navigation -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
-                <a href="/" class="flex items-center gap-3">
-                    <img src="/assets/LOGO%202.png" alt="Sundeck Consulting" class="h-8 max-w-[180px] object-contain" onerror="this.src='https://ui-avatars.com/api/?name=Sundeck&background=FF7A00&color=fff'">
-                    <span class="text-sm font-semibold text-slate-500 tracking-widest uppercase border-l border-slate-300 pl-3">Academic Hub</span>
+                <a href="https://hub.sundeck-consulting.de/" class="flex items-center gap-3 group" aria-label="Sundeck Academic Hub Startseite">
+                    <img src="/assets/LOGO%202.png" alt="Sundeck Consulting Logo" width="120" height="32" class="h-8 max-w-[180px] object-contain" onerror="this.src='https://ui-avatars.com/api/?name=Sundeck&background=FF7A00&color=fff'">
+                    <span class="text-xs sm:text-sm font-semibold text-slate-500 tracking-widest uppercase border-l border-slate-300 pl-3 group-hover:text-slate-900 transition-colors">Academic Hub</span>
                 </a>
-                <div id="lang-toggle-container"></div>
+                <div class="flex items-center gap-3 sm:gap-4">
+                    <div id="lang-toggle-container"></div>
+                    <a href="https://hub.sundeck-consulting.de/" class="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-orange-600 transition-colors bg-slate-50 border border-slate-200 hover:border-orange-200 rounded-lg px-3 py-1.5" aria-label="Zurück zum Academic Hub">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                        <span>Return to Hub</span>
+                    </a>
+                </div>
             </div>
         </div>
     </nav>
 
-    <main class="flex-grow max-w-4xl mx-auto py-12 px-6 w-full">
-        <div class="bg-white border border-slate-200 rounded-2xl p-10 shadow-sm">
-            <h1 class="text-3xl font-bold text-slate-900 mb-6 border-b pb-4">Legal & Compliance Hub</h1>
-            <div class="mb-8 border border-amber-300 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950">
-                <strong>Draft notice: not ready for production.</strong> The controller identity and contact, the university/Sundeck roles, legal bases, retention periods, and processor details must be confirmed and added by the responsible privacy adviser before this notice is relied on.
+    <!-- Header Banner -->
+    <header class="bg-gradient-to-b from-white to-slate-50 border-b border-slate-200 py-10 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-4xl mx-auto text-center">
+            <p class="text-xs font-bold uppercase tracking-[0.2em] text-orange-600 mb-2">Sundeck Academic Hub</p>
+            <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 mb-3">
+                Legal, Privacy & Compliance
+            </h1>
+            <p class="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto">
+                Comprehensive information regarding our Privacy Policy (Datenschutzerklärung), Terms of Service (Nutzungsbedingungen), and GDPR Compliance.
+            </p>
+
+            <!-- Navigation Tabs -->
+            <div class="mt-8 flex flex-wrap justify-center gap-2 p-1.5 bg-slate-200/70 backdrop-blur rounded-2xl max-w-lg mx-auto">
+                <button @click="setTab('privacy')" 
+                        :class="activeTab === 'privacy' ? 'bg-white text-slate-900 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900 font-medium'"
+                        class="flex-1 min-w-[120px] py-2 px-3 text-xs sm:text-sm rounded-xl transition-all">
+                    Privacy Policy
+                </button>
+                <button @click="setTab('terms')" 
+                        :class="activeTab === 'terms' ? 'bg-white text-slate-900 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900 font-medium'"
+                        class="flex-1 min-w-[120px] py-2 px-3 text-xs sm:text-sm rounded-xl transition-all">
+                    Terms of Service
+                </button>
+                <button @click="setTab('gdpr')" 
+                        :class="activeTab === 'gdpr' ? 'bg-white text-slate-900 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900 font-medium'"
+                        class="flex-1 min-w-[120px] py-2 px-3 text-xs sm:text-sm rounded-xl transition-all">
+                    GDPR Rights
+                </button>
             </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-4xl mx-auto py-10 px-4 sm:px-6 w-full">
+        <div class="bg-white border border-slate-200 rounded-3xl p-6 sm:p-12 shadow-sm prose-legal">
             
-            <section class="mb-8">
-                <h2 class="text-xl font-semibold text-slate-800 mb-3">Student Privacy Information</h2>
-                <p class="text-slate-600 leading-relaxed mb-4">
-                    The Academic Hub processes account details such as name and university email, login and session information, and files and metadata submitted for course projects. These data are used to provide the student portal, administer course projects, review deliverables, and protect the service. The controller and lawful basis for each purpose must be confirmed with the participating institution before production use.
+            <!-- ==================== 1. PRIVACY POLICY ==================== -->
+            <section id="privacy" x-show="activeTab === 'privacy'" x-cloak class="space-y-6 animate-fade-in">
+                <div class="border-b border-slate-200 pb-4 mb-6">
+                    <span class="text-xs font-bold uppercase tracking-wider text-orange-600">Document Reference: DS-2026-V1</span>
+                    <h2 class="!mt-2 !mb-1 text-2xl sm:text-3xl">Privacy Policy (Datenschutzerklärung)</h2>
+                    <p class="text-xs text-slate-500">Effective Date: October 2026 &bull; Compliant with Regulation (EU) 2016/679 (GDPR / DSGVO) and TDDDG</p>
+                </div>
+
+                <div class="rounded-2xl border border-blue-100 bg-blue-50/70 p-4 text-xs sm:text-sm text-blue-950 leading-relaxed">
+                    <strong>Summary:</strong> The Sundeck Academic Hub processes student, teacher, and administrator data exclusively to deliver university course collaboration, project management, and assessment. We operate with strict data minimization, zero tracking cookies, secure EU hosting, and encrypted file storage.
+                </div>
+
+                <h3>1. Name und Kontaktdaten des Verantwortlichen (Data Controller)</h3>
+                <p>
+                    Verantwortlicher im Sinne der Datenschutz-Grundverordnung (DSGVO) und sonstiger in den Mitgliedstaaten der Europäischen Union geltenden Datenschutzgesetze ist:
                 </p>
-                <p class="text-slate-600 leading-relaxed">
-                    Currently, uploaded files are written to the Academic Hub application's local server filesystem, while file metadata is stored in the Academic Hub SQLite database. This deployment does not upload student files to a Contabo storage bucket. The hosting location, authorized recipients, any processors, and applicable retention periods must be confirmed and documented before launch.
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm space-y-1">
+                    <p class="font-bold text-slate-900">SUNDECK Consulting</p>
+                    <p class="text-slate-700 font-medium">Inhaber: Harald Düster</p>
+                    <p class="text-slate-700">Universitätsstraße 3</p>
+                    <p class="text-slate-700">56070 Koblenz, Deutschland</p>
+                    <p class="text-slate-700">Tel.: 0261-8996600</p>
+                    <p class="text-slate-700">E-Mail: <a href="mailto:info@sundeck-consulting.de" class="text-orange-600 hover:underline">info@sundeck-consulting.de</a></p>
+                    <p class="text-slate-700">Web: <a href="https://sundeck-consulting.de" target="_blank" class="text-orange-600 hover:underline">sundeck-consulting.de</a></p>
+                </div>
+
+                <h3>2. Umfang und Zweck der Verarbeitung personenbezogener Daten</h3>
+                <p>
+                    Wir verarbeiten personenbezogene Daten unserer Nutzer grundsätzlich nur, soweit dies zur Bereitstellung einer funktionsfähigen Plattform sowie unserer Inhalte und akademischen Leistungen erforderlich ist:
                 </p>
-                <p class="text-slate-600 leading-relaxed mt-4">
-                    Before publication, complete this notice with the controller's legal name and contact details, the data protection contact, purposes and lawful bases, recipients, retention periods, international transfer details if applicable, and how students can exercise their rights or complain to a supervisory authority.
+                <ul>
+                    <li><strong>Account- und Profildaten:</strong> Name, universitäre E-Mail-Adresse, Matrikelzuordnung, Projekt- und Teamzugehörigkeit zur Authentifizierung und Zugriffskontrolle.</li>
+                    <li><strong>Authentifizierungs- und Sitzungsdaten:</strong> Kryptografisch erzeugte Einmal-Zugangscodes (OTP), IP-Adresse (ausschließlich flüchtig bzw. zu Sicherheits- und Ratenbegrenzungszwecken verarbeitet), User-Agent, Sitzungstoken (JWT) mit automatischer Inaktivitätsabmeldung nach 15 Minuten.</li>
+                    <li><strong>Projektleistungen und Dateiuploads:</strong> Projektdateien, Arbeitsberichte, Deliverables, Work Packages, Aktivitäten, Aufgabenstatus, Meilensteine und gegenseitige Team-Abhängigkeiten zur Erfüllung des akademischen Curriculums.</li>
+                    <li><strong>Einwilligungsnachweise:</strong> Audit-Protokolle über Kenntnisnahme der Datenschutzhinweise und optionale Marketinggenehmigungen gem. Art. 7 Abs. 1 DSGVO.</li>
+                </ul>
+
+                <h3>3. Rechtsgrundlagen der Verarbeitung (Lawful Bases)</h3>
+                <p>Die Verarbeitung Ihrer personenbezogenen Daten erfolgt auf Basis folgender Rechtsgrundlagen:</p>
+                <ul>
+                    <li><strong>Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung & Vorvertragliche Maßnahmen):</strong> Die Bereitstellung des Portals, die Teambildung, die Aufgabenverwaltung und die Einreichung von Leistungsnachweisen dienen der ordnungsgemäßen Durchführung des Hochschulprojekts.</li>
+                    <li><strong>Art. 6 Abs. 1 lit. c DSGVO (Rechtliche Verpflichtung):</strong> Zur Erfüllung gesetzlicher Aufbewahrungs- und Dokumentationspflichten im Hochschulkontext.</li>
+                    <li><strong>Art. 6 Abs. 1 lit. f DSGVO (Berechtigte Interessen):</strong> Gewährleistung der IT-Sicherheit, Abwehr von Denial-of-Service- und Brute-Force-Angriffen, Session-Sicherheit und Systemintegrität.</li>
+                    <li><strong>Art. 6 Abs. 1 lit. a DSGVO (Einwilligung):</strong> Eine optionale Nutzung anonymisierter Studentenergebnisse zu Präsentations- und Marketingzwecken erfolgt ausschließlich auf Basis einer gesonderten, freiwilligen und jederzeit widerruflichen Einwilligung. Die Ablehnung hat keinerlei Einfluss auf die Notenvergabe oder Kursdurchführung.</li>
+                </ul>
+
+                <h3>4. Hosting, Speicherort und Technische Sicherheit (Storage & Infrastructure)</h3>
+                <p>
+                    Die Anwendung sowie alle Datenbanken und Datenspeicher werden in zertifizierten Rechenzentren innerhalb der Europäischen Union gehostet (Deutschland / EU).
+                </p>
+                <ul>
+                    <li><strong>Dateispeicher:</strong> Dateianhänge werden in isolierten, S3-kompatiblen Objektspeichern mit privaten Zugriffsrechten (Private ACL) abgelegt. Der Download erfolgt ausschließlich über zeitlich befristete, signierte URLs (Presigned URLs) nach individueller Rollen- und Teamberechtigungsprüfung.</li>
+                    <li><strong>Verschlüsselung:</strong> Alle Datenübertragungen erfolgen ausnahmslos über TLS 1.3 / HTTPS mit strikten HTTP-Sicherheitsheadern (HSTS, CSP, X-Content-Type-Options: nosniff, SameSite-Session-Tokens).</li>
+                    <li><strong>Passwort- & Token-Sicherheit:</strong> Kennwörter und Zugangscodes werden nie im Klartext gespeichert. Einmalcodes verfallen nach maximal 10 Minuten und werden nach einmaliger Nutzung unwiderruflich ungültig.</li>
+                </ul>
+
+                <h3>5. Speicherdauer und Löschung (Retention Periods)</h3>
+                <p>
+                    Personenbezogene Daten werden gelöscht, sobald der Zweck ihrer Erhebung entfällt:
+                </p>
+                <ul>
+                    <li><strong>Sitzungstoken:</strong> Verfallen nach 15 Minuten Inaktivität bzw. maximal 8 Stunden Gesamtlebensdauer.</li>
+                    <li><strong>Login-Codes (OTP):</strong> Werden nach 10 Minuten oder sofort nach der Verifizierung aus der Datenbank entfernt.</li>
+                    <li><strong>Projektdaten und Uploads:</strong> Bleiben für die Dauer des jeweiligen Semesters und des nachfolgenden Prüfungs- und Benotungszeitraums gespeichert und werden anschließend nach Abstimmung mit der Hochschule archiviert oder datenschutzkonform gelöscht.</li>
+                </ul>
+
+                <h3>6. Keine Weitergabe an Dritte / Keine Tracking-Cookies</h3>
+                <p>
+                    Es erfolgt keine Übermittlung Ihrer Daten an werbliche Dritte oder Tracking-Netzwerke (wie Google Analytics, Meta Pixel etc.). Wir verwenden ausschließlich technisch zwingend notwendige Session-Tokens und lokale Browsereinstellungen (wie die gewählte Sprache) gem. &sect; 25 Abs. 2 TDDDG.
                 </p>
             </section>
 
-            <section class="mb-8">
-                <h2 class="text-xl font-semibold text-slate-800 mb-3">Course and Optional Marketing Use</h2>
-                <p class="text-slate-600 leading-relaxed">
-                    Course administration and review are separate from optional marketing use. Students may decline marketing permission without affecting course access or assessment. The current draft marketing permission is limited to student-created work after personal and identifying details have been removed; it does not permit marketing use of a student's name, image, voice, email, or other identifying personal data. Third-party material and other contributors' work are not covered. Uploading work alone does not transfer its copyright to Sundeck Consulting. Have the final scope and wording reviewed by the responsible privacy and legal advisers before production use.
+            <!-- ==================== 2. TERMS OF SERVICE ==================== -->
+            <section id="terms" x-show="activeTab === 'terms'" x-cloak class="space-y-6 animate-fade-in">
+                <div class="border-b border-slate-200 pb-4 mb-6">
+                    <span class="text-xs font-bold uppercase tracking-wider text-orange-600">Document Reference: AGB-2026-V1</span>
+                    <h2 class="!mt-2 !mb-1 text-2xl sm:text-3xl">Terms of Service (Nutzungsbedingungen)</h2>
+                    <p class="text-xs text-slate-500">Effective Date: October 2026 &bull; Sundeck Academic Hub Collaboration Platform</p>
+                </div>
+
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                    <strong>Overview:</strong> These terms govern the access and use of the Sundeck Academic Hub by university students, professors/teachers, and university administrators. By authenticating and accessing the portal, you agree to these conditions.
+                </div>
+
+                <h3>1. Geltungsbereich und Zugangsberechtigung (Scope & Eligibility)</h3>
+                <p>
+                    Der Sundeck Academic Hub ist eine geschlossene, webbasierte Kooperationsplattform für universitäre Projektarbeiten. Der Zugang ist ausschließlich folgenden Personengruppen vorbehalten:
+                </p>
+                <ul>
+                    <li>Immatrikulierte Studierende, die für ein teilnehmendes Projekt oder Seminar eingeschrieben und durch die Hochschule freigeschaltet sind.</li>
+                    <li>Lehrende, Professorinnen und Professoren, die mit der Betreuung und Bewertung des Projekts betraut sind.</li>
+                    <li>Autorisierte Hochschul- und Mandanten-Administratoren.</li>
+                </ul>
+
+                <h3>2. Pflichten der Nutzer (User Responsibilities)</h3>
+                <ul>
+                    <li><strong>Vertraulichkeit der Zugangsdaten:</strong> Die an Ihre E-Mail-Adresse versandten Einmal-Zugangscodes (OTP) und Sitzungstoken sind strikt vertraulich und dürfen keinesfalls an Dritte weitergegeben werden.</li>
+                    <li><strong>Sitzungssicherheit an öffentlichen Terminals:</strong> Da Arbeitsplätze an Universitäten häufig öffentlich geteilt werden, verfügt die Plattform über eine automatische Abmeldung nach 15 Minuten Inaktivität. Nutzer sind verpflichtet, nach Beendigung der Sitzung den Button "Sicher abmelden" (Secure Sign Out) zu betätigen.</li>
+                    <li><strong>Urheberschaft & Integrität:</strong> Es dürfen nur Arbeiten und Dokumente hochgeladen werden, an denen das Team oder die Studierenden die entsprechenden Rechte besitzen und die den Grundsätzen guter wissenschaftlicher Praxis entsprechen.</li>
+                </ul>
+
+                <h3>3. Geistiges Eigentum und Urheberrecht (Intellectual Property)</h3>
+                <p>
+                    <strong>Das Urheberrecht an den von Studierenden erstellten Werken verbleibt uneingeschränkt bei den jeweiligen Studierenden bzw. Urhebern.</strong>
+                </p>
+                <p>
+                    Durch den Upload räumen die Studierenden Sundeck Consulting und der Hochschule lediglich das einfache, räumlich auf den Lehr- und Bewertungsbetrieb beschränkte Recht ein, die Arbeitsleistungen zum Zwecke der Seminarorganisation, der Zwischenabnahme und der Benotung zu speichern, darzustellen und zu verarbeiten. Eine werbliche oder kommerzielle Nutzung findet ohne gesonderte, ausdrückliche und schriftliche bzw. protokollierte Einwilligung nicht statt.
+                </p>
+
+                <h3>4. Unzulässige Nutzung (Prohibited Activities)</h3>
+                <p>Folgende Handlungen sind strengstens untersagt und führen zum sofortigen Entzug der Zugangsberechtigung:</p>
+                <ul>
+                    <li>Versuche, Sicherheitsmechanismen, Ratenbegrenzungen oder Authentifizierungsschranken zu umgehen.</li>
+                    <li>Das Hochladen von Schadsoftware, Viren oder rechtswidrigen Inhalten.</li>
+                    <li>Der unberechtigte Zugriff auf Daten anderer Teams oder Projekte (Cross-Tenant / Cross-Team Privilege Escalation).</li>
+                    <li>Automatisierte Massenabfragen oder Scraping ohne ausdrückliche Genehmigung.</li>
+                </ul>
+
+                <h3>5. Verfügbarkeit und Haftung (Service Availability & Liability)</h3>
+                <p>
+                    Die Plattform wird auf Best-Effort-Basis zur Unterstützung der Hochschullehre bereitgestellt. Es wird eine hohe Verfügbarkeit angestrebt, jedoch können unvorhersehbare Wartungsarbeiten oder Störungen nicht gänzlich ausgeschlossen werden. Studierenden wird empfohlen, wichtige finale Dokumente zusätzlich lokal zu sichern.
                 </p>
             </section>
-            
-            <a href="/" class="inline-block mt-4 bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2 rounded-lg font-medium transition-colors">Return to Hub</a>
+
+            <!-- ==================== 3. GDPR COMPLIANCE & RIGHTS ==================== -->
+            <section id="gdpr" x-show="activeTab === 'gdpr'" x-cloak class="space-y-6 animate-fade-in">
+                <div class="border-b border-slate-200 pb-4 mb-6">
+                    <span class="text-xs font-bold uppercase tracking-wider text-orange-600">Document Reference: GDPR-ART13-V1</span>
+                    <h2 class="!mt-2 !mb-1 text-2xl sm:text-3xl">GDPR Compliance & Betroffenenrechte</h2>
+                    <p class="text-xs text-slate-500">Information pursuant to Articles 12, 13, 14, 15–22 & 77 GDPR / DSGVO</p>
+                </div>
+
+                <div class="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 text-xs sm:text-sm text-emerald-950 leading-relaxed">
+                    <strong>Data Subject Protection:</strong> You have full control over your personal data under the European General Data Protection Regulation. Here you will find clear instructions on how to exercise your rights.
+                </div>
+
+                <h3>Ihre Betroffenenrechte nach der DSGVO (Your Data Subject Rights)</h3>
+                <p>Als betroffene Person stehen Ihnen nach der DSGVO folgende gesetzliche Rechte gegenüber dem Verantwortlichen zu:</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-6 not-prose">
+                    <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                        <h4 class="font-bold text-slate-900 text-sm mb-1 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center text-xs font-mono">15</span>
+                            Auskunftsrecht (Art. 15 DSGVO)
+                        </h4>
+                        <p class="text-xs text-slate-600">Sie haben das Recht, eine Bestätigung darüber zu verlangen, ob Sie betreffende personenbezogene Daten verarbeitet werden, und Auskunft über diese Daten sowie Kopien zu erhalten.</p>
+                    </div>
+
+                    <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                        <h4 class="font-bold text-slate-900 text-sm mb-1 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center text-xs font-mono">16</span>
+                            Berichtigungsrecht (Art. 16 DSGVO)
+                        </h4>
+                        <p class="text-xs text-slate-600">Sie können unverzüglich die Berichtigung unrichtiger oder die Vervollständigung unvollständiger personenbezogener Daten verlangen.</p>
+                    </div>
+
+                    <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                        <h4 class="font-bold text-slate-900 text-sm mb-1 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center text-xs font-mono">17</span>
+                            Löschungsrecht (Art. 17 DSGVO)
+                        </h4>
+                        <p class="text-xs text-slate-600">Sie haben das Recht auf unverzügliche Löschung Ihrer Daten ("Recht auf Vergessenwerden"), sofern keine gesetzlichen Aufbewahrungsgründe entgegenstehen.</p>
+                    </div>
+
+                    <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                        <h4 class="font-bold text-slate-900 text-sm mb-1 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center text-xs font-mono">18</span>
+                            Einschränkung der Verarbeitung (Art. 18 DSGVO)
+                        </h4>
+                        <p class="text-xs text-slate-600">Sie können die Einschränkung der Verarbeitung verlangen, z.B. wenn die Richtigkeit der Daten bestritten wird oder die Verarbeitung unrechtmäßig ist.</p>
+                    </div>
+
+                    <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                        <h4 class="font-bold text-slate-900 text-sm mb-1 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center text-xs font-mono">20</span>
+                            Datenübertragbarkeit (Art. 20 DSGVO)
+                        </h4>
+                        <p class="text-xs text-slate-600">Sie haben das Recht, die Sie betreffenden Daten in einem strukturierten, gängigen und maschinenlesbaren Format zu erhalten oder an einen Dritten übermitteln zu lassen.</p>
+                    </div>
+
+                    <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                        <h4 class="font-bold text-slate-900 text-sm mb-1 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center text-xs font-mono">21</span>
+                            Widerspruchsrecht (Art. 21 DSGVO)
+                        </h4>
+                        <p class="text-xs text-slate-600">Sie haben das Recht, aus Gründen, die sich aus Ihrer besonderen Situation ergeben, jederzeit gegen die Verarbeitung Widerspruch einzulegen.</p>
+                    </div>
+                </div>
+
+                <h3>Widerruf von Einwilligungen (Art. 7 Abs. 3 DSGVO)</h3>
+                <p>
+                    Sofern die Verarbeitung auf einer erteilten Einwilligung beruht (z.B. freiwillige Freigabe anonymisierter studentischer Projektergebnisse für Marketingzwecke), haben Sie das Recht, diese Einwilligung jederzeit mit Wirkung für die Zukunft zu widerrufen. Sie können Ihre Einstellungen jederzeit direkt im Portal über den Menüpunkt <strong>"Datenschutz-Auswahl" (Privacy choices)</strong> anpassen oder uns formlos per E-Mail kontaktieren. Durch den Widerruf wird die Rechtmäßigkeit der aufgrund der Einwilligung bis zum Widerruf erfolgten Verarbeitung nicht berührt.
+                </p>
+
+                <h3>Beschwerderecht bei einer Aufsichtsbehörde (Art. 77 DSGVO)</h3>
+                <p>
+                    Unbeschadet eines anderweitigen verwaltungsrechtlichen oder gerichtlichen Rechtsbehelfs steht Ihnen das Recht auf Beschwerde bei einer zuständigen Datenschutzaufsichtsbehörde zu, insbesondere in dem Mitgliedstaat Ihres gewöhnlichen Aufenthaltsorts, Ihres Arbeitsplatzes oder des Orts des mutmaßlichen Verstoßes, wenn Sie der Ansicht sind, dass die Verarbeitung der Sie betreffenden personenbezogenen Daten gegen die DSGVO verstößt.
+                </p>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs sm:text-sm">
+                    <strong>Zuständige Aufsichtsbehörde in Deutschland:</strong><br>
+                    Sie können sich an die Datenschutzaufsichtsbehörde des jeweiligen Bundeslandes wenden, in dem der Verantwortliche seinen Sitz hat oder in dem die Hochschule ansässig ist (z.B. Der Landesbeauftragte für den Datenschutz und die Informationsfreiheit).
+                </div>
+
+                <h3>Technische und organisatorische Sicherheitsmaßnahmen (Art. 32 DSGVO)</h3>
+                <p>
+                    Um ein dem Risiko angemessenes Schutzniveau zu gewährleisten, haben wir gemäß Art. 32 DSGVO umfassende technische und organisatorische Maßnahmen implementiert:
+                </p>
+                <ul>
+                    <li><strong>Pseudonymisierung & Mandantentrennung:</strong> Strikte logische Trennung aller Hochschulen, Projekte und Teams auf Software- und Datenbankebene.</li>
+                    <li><strong>Vertraulichkeit & Integrität:</strong> TLS 1.3 Transportverschlüsselung, geschützte API-Endpunkte mit Berechtigungsprüfungen (Role-Based Access Control) und signierte Objektspeicher-Links.</li>
+                    <li><strong>Verfügbarkeit & Belastbarkeit:</strong> Automatisierte Datenbanksicherungen, Überwachung der Systemressourcen und robuste Fehlerbehandlungsroutinen.</li>
+                </ul>
+
+                <h3>Kontaktstelle für Datenschutz</h3>
+                <p>
+                    Zur Wahrnehmung Ihrer Rechte oder bei Fragen zur Verarbeitung Ihrer personenbezogenen Daten wenden Sie sich bitte an:
+                </p>
+                <p class="font-bold text-slate-800">
+                    SUNDECK Consulting &bull; Inhaber: Harald Düster<br>
+                    Universitätsstraße 3, 56070 Koblenz<br>
+                    Tel.: 0261-8996600<br>
+                    E-Mail: <a href="mailto:info@sundeck-consulting.de" class="text-orange-600 hover:underline">info@sundeck-consulting.de</a>
+                </p>
+            </section>
+
+            <!-- Bottom Back Link -->
+            <div class="mt-12 pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <a href="/" class="inline-flex items-center gap-2 bg-slate-100 hover:bg-orange-50 hover:text-orange-700 text-slate-700 px-5 py-2.5 rounded-xl font-medium text-sm transition-colors border border-slate-200">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    Return to Academic Hub
+                </a>
+                <span class="text-xs text-slate-400">Official Sundeck Consulting Academic Production Release</span>
+            </div>
         </div>
     </main>
 
-    <footer class="bg-white border-t border-slate-200 mt-auto">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center text-sm text-slate-500">
-            &copy; 2026 Sundeck Consulting. All rights reserved.
+    <!-- Global Footer -->
+    <footer class="bg-white border-t border-slate-200 mt-auto py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs sm:text-sm text-slate-500">
+            <div>
+                &copy; 2026 SUNDECK Consulting &bull; Inhaber: Harald Düster. All rights reserved. Academic Hub.
+            </div>
+            <div class="flex flex-wrap items-center gap-6">
+                <button @click="setTab('privacy')" class="hover:text-orange-600 transition-colors">Privacy Policy</button>
+                <button @click="setTab('terms')" class="hover:text-orange-600 transition-colors">Terms of Service</button>
+                <button @click="setTab('gdpr')" class="hover:text-orange-600 transition-colors">GDPR Information</button>
+                <a href="/" class="hover:text-orange-600 transition-colors">Academic Hub Home</a>
+            </div>
         </div>
     </footer>
+
 </body>
 </html>

@@ -4,11 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sundeck Academic Hub | Tenant Admin</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Favicon & Touch Icons -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+    <!-- Performance & Font Optimization -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="/i18n.js"></script>
+    <script defer src="/i18n.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #FAFAFA; color: #334155; }
         
         .card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
@@ -29,8 +41,8 @@
     <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <a href="/" aria-label="Academic Hub homepage" class="shrink-0">
-                    <img src="/assets/LOGO%202.png" alt="Sundeck Consulting" class="h-8 max-w-[180px] object-contain" onerror="this.src='https://ui-avatars.com/api/?name=Sundeck&background=FF7A00&color=fff'">
+                <a href="https://hub.sundeck-consulting.de/" aria-label="Sundeck Academic Hub Startseite" class="shrink-0">
+                    <img src="/assets/LOGO%202.png" alt="Sundeck Consulting Logo" width="120" height="32" class="h-8 max-w-[180px] object-contain" onerror="this.src='https://ui-avatars.com/api/?name=Sundeck&background=FF7A00&color=fff'">
                 </a>
                 <span class="text-slate-300">|</span>
                 <span class="text-sm font-medium text-slate-500 uppercase tracking-widest">Academic Hub</span>
@@ -1129,7 +1141,19 @@
             
         </div>
 
-</div>
+    </main>
+
+    <!-- Global Footer -->
+    <footer class="mt-auto border-t border-slate-200 bg-white py-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+            <p>&copy; 2026 SUNDECK Consulting &bull; Inhaber: Harald Düster. All rights reserved. Academic Hub Administration.</p>
+            <div class="flex items-center gap-6">
+                <a href="/legal#privacy" target="_blank" class="hover:text-orange-600 transition-colors">Privacy Policy</a>
+                <a href="/legal#terms" target="_blank" class="hover:text-orange-600 transition-colors">Terms of Service</a>
+                <a href="/legal#gdpr" target="_blank" class="hover:text-orange-600 transition-colors">GDPR Information</a>
+            </div>
+        </div>
+    </footer>
 
 <div x-show="assignmentModalOpen" x-cloak @keydown.escape.window="!assignmentLoading && (assignmentModalOpen = false)" @click.self="!assignmentLoading && (assignmentModalOpen = false)" role="dialog" aria-modal="true" aria-labelledby="assignment-modal-title" class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/50 p-4">
     <form @submit.prevent="saveTeacherAssignments()" class="w-full max-w-lg overflow-hidden rounded-xl bg-white shadow-xl">
