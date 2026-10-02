@@ -1222,9 +1222,9 @@ activeDropdown: null,
                 },
                 
                 async selectTeam(t) {
+                    if (!t || !t.id || !t.project_id) return;
                     this.selectedTeamId = t.id;
                     this.viewState = 'dashboard';
-                    // spoof this.team so fetchTeam doesn't fail, or just use the team id
                     this.team = t; 
                     await this.fetchProjectData();
                     await this.fetchProjectResources();
@@ -1372,21 +1372,45 @@ activeDropdown: null,
                 },
 
                 async fetchFiles() {
-                    const res = await fetch(`/api/students/files?team_id=${this.team.id}`, {
-                        headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
-                    });
-                    if (res.status === 401) return this.logout();
-                    this.files = await res.json();
+                    if (!this.token || !this.team?.id) {
+                        this.files = [];
+                        return;
+                    }
+                    try {
+                        const res = await fetch(`/api/students/files?team_id=${encodeURIComponent(this.team.id)}`, {
+                            headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                        });
+                        if (res.status === 401) {
+                            this.files = [];
+                            return this.logout(true);
+                        }
+                        const data = await res.json().catch(() => null);
+                        this.files = res.ok && Array.isArray(data) ? data : [];
+                    } catch (error) {
+                        this.files = [];
+                        console.error('Unable to load team files', error);
+                    }
                 },
                 
                 async fetchDeliverableFolders() {
-                    const res = await fetch(`/api/students/file-folders?team_id=${this.team.id}`, {
-                        headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
-                    });
-                    if (res.status === 401) return this.logout(true);
-                    const data = await res.json();
-                    if (!res.ok) return alert(data.error || 'Unable to load folders');
-                    this.deliverableFolders = data;
+                    if (!this.token || !this.team?.id) {
+                        this.deliverableFolders = [];
+                        return;
+                    }
+                    try {
+                        const res = await fetch(`/api/students/file-folders?team_id=${encodeURIComponent(this.team.id)}`, {
+                            headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
+                        });
+                        if (res.status === 401) {
+                            this.deliverableFolders = [];
+                            return this.logout(true);
+                        }
+                        const data = await res.json().catch(() => null);
+                        this.deliverableFolders = res.ok && Array.isArray(data) ? data : [];
+                    } catch (error) {
+                        this.deliverableFolders = [];
+                        console.error('Unable to load deliverable folders', error);
+                    }
                 },
                 
                 
@@ -1557,7 +1581,8 @@ activeDropdown: null,
                     }
                 },
 filteredDeliverables() {
-                    return this.files.filter(file => (file.folder_id || '') === (this.selectedDeliverableFolderId || ''));
+                    const files = Array.isArray(this.files) ? this.files : [];
+                    return files.filter(file => (file.folder_id || '') === (this.selectedDeliverableFolderId || ''));
                 },
                 
                 
