@@ -2858,12 +2858,20 @@ def stream_events():
             # Send initial ping to establish connection
             yield "data: {\"type\": \"CONNECTED\"}\n\n"
             while True:
-                message = q.get()
+                try:
+                    message = q.get(timeout=15)
+                except queue.Empty:
+                    yield ": keep-alive\n\n"
+                    continue
                 yield f"data: {message}\n\n"
-        except GeneratorExit:
+        finally:
             realtime_manager.remove_client(q)
             
-    return Response(event_stream(), mimetype="text/event-stream")
+    return Response(
+        event_stream(),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 @app.after_request
 def after_request_broadcast(response):
