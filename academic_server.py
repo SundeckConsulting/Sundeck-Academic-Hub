@@ -134,6 +134,7 @@ def _check_rate_limit(key, max_attempts=5, window_seconds=600):
 
 app = Flask(__name__, static_folder="frontend", static_url_path="")
 app.config["MAX_CONTENT_LENGTH"] = 52 * 1024 * 1024
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 86400
 
 
 def _ensure_core_tables():
@@ -3192,6 +3193,8 @@ def after_request_broadcast(response):
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("Permissions-Policy", "geolocation=(), camera=(), microphone=(), payment=()")
     response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    if request.path.startswith("/assets/") or request.path in ["/favicon.ico", "/robots.txt", "/sitemap.xml", "/i18n.js"]:
+        response.headers["Cache-Control"] = "public, max-age=86400"
     if request.is_secure or request.headers.get("X-Forwarded-Proto", "").lower() == "https" or APP_ENV == "production":
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return response
