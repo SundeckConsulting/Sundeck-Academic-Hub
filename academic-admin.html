@@ -1790,7 +1790,7 @@
 
                 async createOrganization() {
                     if(!this.newOrgName) return;
-                    await fetch('/api/sundeck/organizations', {
+                    const res = await fetch('/api/sundeck/organizations', {
                         method: 'POST',
                         headers: {
                             'Content-Type':'application/json',
@@ -1798,6 +1798,16 @@
                         },
                         body: JSON.stringify({name: this.newOrgName, logo_url: this.newOrgLogo || '/assets/LOGO%202.png'})
                     });
+                    let data = {};
+                    try {
+                        data = await res.json();
+                    } catch (err) {
+                        data = { error: 'Organization creation failed. Please try again.' };
+                    }
+                    if (!res.ok || data.error) {
+                        alert(data.error || 'Unable to create organization');
+                        return;
+                    }
                     this.newOrgName = '';
                     this.newOrgLogo = '';
                     this.fetchOrganizations();

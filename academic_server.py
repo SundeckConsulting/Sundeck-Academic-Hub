@@ -1892,9 +1892,11 @@ def get_organizations():
     with sqlite3.connect('academic.db') as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
-        cur.execute("SELECT * FROM organizations ORDER BY created_at DESC")
+        cols = [row[1] for row in cur.execute("PRAGMA table_info(organizations)").fetchall()]
+        sort_col = "created_at" if "created_at" in cols else "rowid"
+        cur.execute(f"SELECT * FROM organizations ORDER BY {sort_col} DESC")
         orgs = [dict(row) for row in cur.fetchall()]
-        
+
         for org in orgs:
             cur.execute("SELECT COUNT(*) as count FROM students WHERE organization_id = ?", (org['id'],))
             org['students_count'] = cur.fetchone()['count']
@@ -1902,7 +1904,7 @@ def get_organizations():
             org['teachers_count'] = cur.fetchone()['count']
             cur.execute("SELECT COUNT(*) as count FROM projects WHERE organization_id = ?", (org['id'],))
             org['projects_count'] = cur.fetchone()['count']
-            
+
         return jsonify(orgs)
 
 @app.route("/api/sundeck/organizations", methods=["POST", "OPTIONS"])
@@ -1910,24 +1912,40 @@ def get_organizations():
 def create_organization():
     if g.role != "sundeck_admin":
         return jsonify({"error": "Forbidden. Requires Superadmin."}), 403
-        
+
     data = request.get_json(silent=True) or {}
     name = data.get("name")
     org_type = data.get("type", "University")
     if not name:
         return jsonify({"error": "Organization name required"}), 400
-        
+
     org_id = str(uuid.uuid4())
     short_name = data.get("short_name", "")
     country = data.get("country", "")
     city = data.get("city", "")
-    
+    logo_url = data.get("logo_url") or ""
+
     with sqlite3.connect('academic.db') as db:
         cur = db.cursor()
-        cur.execute("""
-            INSERT INTO organizations (id, name, type, short_name, country, city, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (org_id, name, org_type, short_name, country, city, 'active'))
+        cols = [row[1] for row in cur.execute("PRAGMA table_info(organizations)").fetchall()]
+        field_values = [("id", org_id), ("name", name)]
+        if "type" in cols:
+            field_values.append(("type", org_type))
+        if "short_name" in cols:
+            field_values.append(("short_name", short_name))
+        if "country" in cols:
+            field_values.append(("country", country))
+        if "city" in cols:
+            field_values.append(("city", city))
+        if "status" in cols:
+            field_values.append(("status", "active"))
+        if "logo_url" in cols:
+            field_values.append(("logo_url", logo_url))
+
+        columns = [field for field, _ in field_values]
+        placeholders = ", ".join(["?"] * len(field_values))
+        values = [value for _, value in field_values]
+        cur.execute(f"INSERT INTO organizations ({', '.join(columns)}) VALUES ({placeholders})", values)
         db.commit()
         return jsonify({"success": True, "id": org_id})
 
