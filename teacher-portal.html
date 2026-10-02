@@ -335,25 +335,35 @@
             <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
                 <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm min-w-0 flex flex-col justify-center">
                     <div class="text-xl font-bold text-slate-900 truncate" x-text="`${getOverallProgress()}%`">0%</div>
-                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-1 truncate">Overall Progress</div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-1 truncate">Selected Team Progress</div>
                 </div>
                 <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm min-w-0 flex flex-col justify-center">
                     <div class="text-xl font-bold text-slate-900 truncate" x-text="workPackages.length">0</div>
-                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-1 truncate">Work Packages</div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-1 truncate">Project Work Packages</div>
                 </div>
                 <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm min-w-0 flex flex-col justify-center">
                     <div class="text-xl font-bold text-slate-900 truncate" x-text="activities.length">0</div>
-                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-1 truncate">Activities</div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-1 truncate">Project Activities</div>
                 </div>
                 <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm min-w-0 flex flex-col justify-center">
                     <div class="text-xl font-bold text-slate-900 truncate" x-text="projectTasks.length">0</div>
-                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-1 truncate">Total Tasks</div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-1 truncate">Selected Team's Tasks</div>
                 </div>
             </div>
 
             <!-- Action Bar -->
-            <div class="flex justify-end mb-2">
-                <button @click="openNewWpModal()" class="btn-primary rounded-xl px-4 py-2 text-sm font-semibold flex items-center gap-2">
+            <div class="flex items-center justify-between mb-2 flex-wrap gap-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Show:</span>
+                    <select x-model="wpFilterTeam" class="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white shadow-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500">
+                        <option value="all">All Teams (Entire Project)</option>
+                        <option :value="team?.id" x-text="`${team?.name || 'Selected Team'} Only`"></option>
+                        <template x-for="t in allTeams.filter(t => t.id !== team?.id)" :key="t.id">
+                            <option :value="t.id" x-text="t.name"></option>
+                        </template>
+                    </select>
+                </div>
+                <button @click="openNewWpModal()" class="btn-primary rounded-xl px-4 py-2 text-sm font-semibold flex items-center gap-2 shadow-sm">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                     New Work Package
                 </button>
@@ -361,7 +371,7 @@
 
             <!-- Work Packages Curriculum View -->
             <div class="space-y-4">
-                <template x-for="wp in workPackages" :key="wp.id">
+                <template x-for="wp in getFilteredWorkPackages()" :key="wp.id">
                     <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-200">
                         <!-- WP Header -->
                         <div class="px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors flex items-center justify-between group" @click="toggleWp(wp.id)">
@@ -370,19 +380,22 @@
                                     <svg class="w-5 h-5 transition-transform duration-200" :class="expandedWorkPackages[wp.id] ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                                 </button>
                                 <div>
-                                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5" x-text="wp.team_id === team.id ? 'Work Package' : getTeamName(wp.team_id)"></div>
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span x-show="wp.team_id === team?.id" class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200 uppercase tracking-wider" x-text="team?.name || 'Selected Team'"></span>
+                                        <span x-show="wp.team_id !== team?.id" class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 uppercase tracking-wider" x-text="getTeamName(wp.team_id)"></span>
+                                    </div>
                                     <h3 class="font-bold text-slate-900 text-base" x-text="wp.name"></h3>
                                 </div>
                             </div>
                             <div class="flex items-center gap-6 text-sm text-slate-500">
                                 <div class="hidden sm:block text-right">
                                     <div class="font-medium text-slate-700" x-text="`${getActivitiesForWP(wp.id).length} Activities`"></div>
-                                    <div class="text-xs" x-text="getWpProgress(wp.id).text"></div>
+                                    <div class="text-xs" x-text="getWpProgress(wp.id).text" x-show="wp.team_id === team?.id"></div>
                                 </div>
-                                <div class="w-16 h-2 bg-slate-100 rounded-full overflow-hidden flex-shrink-0" title="Progress">
+                                <div class="w-16 h-2 bg-slate-100 rounded-full overflow-hidden flex-shrink-0" title="Progress" x-show="wp.team_id === team?.id">
                                     <div class="h-full bg-orange-500 rounded-full transition-all duration-500" :style="`width: ${getWpProgress(wp.id).percent}%`"></div>
                                 </div>
-                                <div class="opacity-0 group-hover:opacity-100 flex items-center shrink-0 transition-opacity" x-show="wp.team_id === team.id">
+                                <div class="opacity-0 group-hover:opacity-100 flex items-center shrink-0 transition-opacity" x-show="wp.team_id === team?.id">
                                     <button @click.stop="openEditWpModal(wp)" class="p-1.5 text-slate-400 hover:text-orange-600 rounded-lg hover:bg-orange-50 transition-colors" title="Edit Work Package">
                                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                     </button>
@@ -402,26 +415,27 @@
                                     <template x-for="act in getActivitiesForWP(wp.id)" :key="act.id">
                                         <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden relative group">
                                             <!-- Activity Header -->
-                                            <div class="px-4 py-3 transition-colors flex items-center justify-between relative z-10" :class="wp.team_id === team.id ? 'cursor-pointer hover:bg-slate-50' : ''" @click="wp.team_id === team.id && toggleAct(act.id)">
-                                                <div class="flex items-center gap-3">
-                                                    <button class="text-slate-400 hover:text-slate-600 transition-colors" x-show="wp.team_id === team.id">
+                                            <div class="px-4 py-3 transition-colors flex items-center justify-between relative z-10" :class="wp.team_id === team?.id ? 'cursor-pointer hover:bg-slate-50' : ''" @click="wp.team_id === team?.id && toggleAct(act.id)">
+                                                <div class="flex items-start gap-3">
+                                                    <button class="text-slate-400 hover:text-slate-600 transition-colors mt-0.5" x-show="wp.team_id === team?.id">
                                                         <svg class="w-4 h-4 transition-transform duration-200" :class="expandedActivities[act.id] ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                                                     </button>
                                                     <div>
                                                         <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5" x-text="'Activity'"></div>
                                                         <h4 class="font-bold text-slate-800 text-sm" x-text="act.name"></h4>
+                                                        <p class="text-xs text-slate-500 mt-1" x-show="act.description" x-text="act.description"></p>
                                                     </div>
                                                 </div>
                                                 <div class="flex items-center gap-4 text-xs text-slate-500">
-                                                    <div class="text-right">
+                                                    <div class="text-right" x-show="wp.team_id === team?.id">
                                                         <span class="font-medium text-slate-600" x-text="`${getActProgress(act.id).percent}%`"></span>
                                                         <span class="hidden sm:inline-block mx-1">·</span>
                                                         <span class="hidden sm:inline-block" x-text="`${getTasksForActivity(act.id).length} Tasks`"></span>
                                                     </div>
-                                                    <div class="w-10 h-1.5 bg-slate-100 rounded-full overflow-hidden shrink-0 hidden sm:block">
+                                                    <div class="w-10 h-1.5 bg-slate-100 rounded-full overflow-hidden shrink-0 hidden sm:block" x-show="wp.team_id === team?.id">
                                                         <div class="h-full bg-orange-400 rounded-full transition-all duration-300" :style="`width: ${getActProgress(act.id).percent}%`"></div>
                                                     </div>
-                                                    <div class="opacity-0 group-hover:opacity-100 flex items-center shrink-0 transition-opacity" x-show="wp.team_id === team.id">
+                                                    <div class="opacity-0 group-hover:opacity-100 flex items-center shrink-0 transition-opacity" x-show="wp.team_id === team?.id">
                                                         <button @click.stop="openEditActModal(act)" class="p-1.5 text-slate-400 hover:text-orange-600 rounded-lg hover:bg-orange-50 transition-colors" title="Edit Activity">
                                                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                                         </button>
@@ -433,7 +447,7 @@
                                             </div>
                                             
                                             <!-- Tasks List -->
-                                            <div x-show="wp.team_id === team.id && expandedActivities[act.id]" x-collapse x-cloak>
+                                            <div x-show="wp.team_id === team?.id && expandedActivities[act.id]" x-collapse x-cloak>
                                                 <div class="border-t border-slate-100 bg-white">
                                                     <p class="text-xs text-slate-500 px-11 py-2" x-show="act.description" x-text="act.description"></p>
                                                     <template x-for="task in getTasksForActivity(act.id)" :key="task.id">
@@ -997,6 +1011,7 @@
                 selectedProjectId: null,
 
                 workPackages: [],
+                wpFilterTeam: 'all',
                 activities: [],
                 expandedWorkPackages: {},
                 expandedActivities: {},
@@ -1926,7 +1941,7 @@ async fetchProjectData(team = this.team) {
                     if (!this.token || !team?.id || !projectId) return;
                     await this.fetchAllTeams(projectId);
                     if (String(this.team?.id) !== String(team.id)) return;
-                    let res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/tasks`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
+                    let res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/tasks?team_id=${encodeURIComponent(team.id)}`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
                     if(res.ok) { let d = await res.json(); this.projectTasks = d.tasks.filter(t => t.activity_id); }
                     if (String(this.team?.id) !== String(team.id)) return;
                     res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/dependencies`, {headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}});
@@ -1953,6 +1968,19 @@ async fetchProjectData(team = this.team) {
                         return (parts[0][0] + parts[1][0]).toUpperCase();
                     }
                     return parts[0].substring(0, 2).toUpperCase();
+                },
+                getFilteredWorkPackages() {
+                    let list = this.workPackages || [];
+                    if (this.wpFilterTeam && this.wpFilterTeam !== 'all') {
+                        list = list.filter(w => w.team_id === this.wpFilterTeam);
+                    }
+                    return [...list].sort((a, b) => {
+                        const isSelectedTeamA = a.team_id === this.team?.id;
+                        const isSelectedTeamB = b.team_id === this.team?.id;
+                        if (isSelectedTeamA && !isSelectedTeamB) return -1;
+                        if (!isSelectedTeamA && isSelectedTeamB) return 1;
+                        return (a.name || '').localeCompare(b.name || '');
+                    });
                 },
                 getActivitiesForWP(wpId) {
                     return this.activities.filter(a => a.work_package_id === wpId);

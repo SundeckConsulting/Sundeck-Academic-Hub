@@ -2273,8 +2273,6 @@ def get_project_work_packages(project_id):
         db.row_factory = sqlite3.Row
         query = "SELECT * FROM work_packages WHERE project_id = ? AND organization_id = ?"
         params = [project_id, g.org_id]
-        if g.role != "student":
-            team_id = g.project_team_id or team_id
         if team_id:
             query += " AND team_id = ?"
             params.append(team_id)
@@ -2311,6 +2309,7 @@ def create_project_work_package(project_id):
 @app.route("/api/projects/<project_id>/activities", methods=["GET"])
 @require_student_auth
 def get_project_activities(project_id):
+    team_id = request.args.get("team_id")
     with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         query = """
@@ -2319,9 +2318,9 @@ def get_project_activities(project_id):
             WHERE a.project_id = ? AND a.organization_id = ? AND wp.organization_id = ?
         """
         params = [project_id, g.org_id, g.org_id]
-        if g.project_team_id:
+        if team_id:
             query += " AND wp.team_id = ?"
-            params.append(g.project_team_id)
+            params.append(team_id)
         acts = [dict(row) for row in db.execute(query, params).fetchall()]
         return jsonify({"activities": acts})
 
@@ -2516,9 +2515,6 @@ def get_project_teams_student(project_id):
         db.row_factory = sqlite3.Row
         query = "SELECT id, name, project_id FROM student_teams WHERE project_id = ? AND organization_id = ?"
         params = [project_id, g.org_id]
-        if g.project_team_id:
-            query += " AND id = ?"
-            params.append(g.project_team_id)
         teams = [dict(row) for row in db.execute(query, params).fetchall()]
         return jsonify({"teams": teams})
 
@@ -2681,14 +2677,15 @@ def create_project_dependency(project_id):
         from_task_id = data.get("from_task_id")
         to_task_id = data.get("to_task_id")
         requested_from_team_id = data.get("request_from_team_id")
-        if requested_from_team_id and str(requested_from_team_id) != str(student_team_id):
-            return jsonify({"error": "Unauthorized to create dependency for another team"}), 403
+        if requested_from_team_id:
+            if not cur.execute("SELECT 1 FROM student_teams WHERE id = ? AND project_id = ? AND organization_id = ?", (requested_from_team_id, project_id, g.org_id)).fetchone():
+                return jsonify({"error": "Requested team is outside the authorized project"}), 400
         if from_task_id:
             source_task = cur.execute("""
                 SELECT team_id FROM project_tasks
                 WHERE id = ? AND project_id = ? AND organization_id = ?
             """, (from_task_id, project_id, g.org_id)).fetchone()
-            if not source_task or source_task[0] != student_team_id:
+            if not source_task or (source_task[0] != student_team_id and source_task[0] != requested_from_team_id):
                 return jsonify({"error": "Source task is outside the authorized team"}), 403
         if not to_task_id:
             to_task_id = f"TEAM_{student_team_id}"
@@ -2701,15 +2698,15 @@ def create_project_dependency(project_id):
                 return jsonify({"error": "Target task is outside the authorized project"}), 400
 
         request_from_wp_id = data.get("request_from_wp_id")
-        if request_from_wp_id and not cur.execute("SELECT 1 FROM work_packages WHERE id = ? AND project_id = ? AND organization_id = ? AND team_id = ?", (request_from_wp_id, project_id, g.org_id, student_team_id)).fetchone():
-            return jsonify({"error": "Work package is outside the authorized team"}), 403
+        if request_from_wp_id and not cur.execute("SELECT 1 FROM work_packages WHERE id = ? AND project_id = ? AND organization_id = ?", (request_from_wp_id, project_id, g.org_id)).fetchone():
+            return jsonify({"error": "Work package is outside the authorized project"}), 403
         request_from_act_id = data.get("request_from_act_id")
         if request_from_act_id and not cur.execute("""
             SELECT 1 FROM activities a
             JOIN work_packages wp ON wp.id = a.work_package_id AND wp.organization_id = a.organization_id
-            WHERE a.id = ? AND a.project_id = ? AND a.organization_id = ? AND wp.team_id = ?
-        """, (request_from_act_id, project_id, g.org_id, student_team_id)).fetchone():
-            return jsonify({"error": "Activity is outside the authorized team"}), 403
+            WHERE a.id = ? AND a.project_id = ? AND a.organization_id = ?
+        """, (request_from_act_id, project_id, g.org_id)).fetchone():
+            return jsonify({"error": "Activity is outside the authorized project"}), 403
 
         status = "Mapped"
         if not from_task_id:
@@ -2727,7 +2724,7 @@ def create_project_dependency(project_id):
             dep_id, g.org_id, project_id, from_task_id, to_task_id,
             data.get("dependency_type", "Finish-to-Start"), data.get("reason", ""),
             data.get("expected_date", ""), datetime.now(timezone.utc).isoformat(),
-            status, student_team_id, request_from_wp_id,
+            status, requested_from_team_id or student_team_id, request_from_wp_id,
             request_from_act_id, what_needed
         ))
         db.commit()
