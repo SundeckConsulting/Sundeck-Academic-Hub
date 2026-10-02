@@ -133,7 +133,7 @@ def _check_rate_limit(key, max_attempts=5, window_seconds=600):
         return True
 
 app = Flask(__name__, static_folder="frontend", static_url_path="")
-app.config["MAX_CONTENT_LENGTH"] = 52 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 260 * 1024 * 1024
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 86400
 
 
@@ -263,7 +263,7 @@ APP_ENV = os.environ.get("APP_ENV", "development").strip().lower()
 storage_service = ObjectStorageService()
 if APP_ENV == "production" and not storage_service.is_enabled:
     raise RuntimeError("Contabo Object Storage must be configured in production via environment variables")
-MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+MAX_UPLOAD_BYTES = 250 * 1024 * 1024
 JWT_SECRET = os.environ.get("JWT_SECRET")
 if not JWT_SECRET:
     if APP_ENV == "production":
@@ -1163,7 +1163,7 @@ def manage_project_resources(project_id):
             payload = resource.read()
             file_size = len(payload)
             if file_size > MAX_UPLOAD_BYTES:
-                return jsonify({"error": "Files must be 50 MB or smaller"}), 413
+                return jsonify({"error": "Files must be 250 MB or smaller"}), 413
             storage_reference = storage_service.upload_bytes(storage_key, payload, file_type, {"org_id": g.org_id, "project_id": project_id, "uploaded_by": "admin"})
             created_at = datetime.now(timezone.utc).isoformat()
             cur.execute("""
@@ -2078,7 +2078,7 @@ def upload_student_file():
         file_bytes = file.read()
         file_size = len(file_bytes)
         if file_size > MAX_UPLOAD_BYTES:
-            return jsonify({"error": "Files must be 50 MB or smaller"}), 413
+            return jsonify({"error": "Files must be 250 MB or smaller"}), 413
         storage_key = build_object_key(g.org_id, student_info[0], safe_filename, folder_id or file_id)
         storage_reference = storage_service.upload_bytes(storage_key, file_bytes, file_type, {"org_id": g.org_id, "team_id": student_info[0], "uploaded_by": student_info[1]})
         cur.execute("""
@@ -3231,8 +3231,8 @@ def handle_not_found(e):
 @app.errorhandler(413)
 def handle_payload_too_large(e):
     if request.path.startswith("/api/"):
-        return jsonify({"error": "Uploaded file exceeds maximum allowed size (50 MB)"}), 413
-    return "File too large (maximum 50 MB allowed)", 413
+        return jsonify({"error": "Uploaded file exceeds maximum allowed size (250 MB)"}), 413
+    return "File too large (maximum 250 MB allowed)", 413
 
 
 @app.errorhandler(429)

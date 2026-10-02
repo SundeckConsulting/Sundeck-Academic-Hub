@@ -8,7 +8,7 @@ class StorageValidationError(ValueError):
     pass
 
 
-MAX_STORED_FILE_SIZE = 50 * 1024 * 1024
+MAX_STORED_FILE_SIZE = 250 * 1024 * 1024
 ALLOWED_MIME_PREFIXES = (
     "application/pdf",
     "application/msword",
