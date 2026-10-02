@@ -2273,7 +2273,8 @@ def get_project_work_packages(project_id):
         db.row_factory = sqlite3.Row
         query = "SELECT * FROM work_packages WHERE project_id = ? AND organization_id = ?"
         params = [project_id, g.org_id]
-        team_id = g.project_team_id or team_id
+        if g.role != "student":
+            team_id = g.project_team_id or team_id
         if team_id:
             query += " AND team_id = ?"
             params.append(team_id)
