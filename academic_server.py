@@ -2286,17 +2286,18 @@ def create_project_work_package(project_id):
     wp_id = str(uuid.uuid4())
     with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
-        req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
-        if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
-            student = MockRow(req_team)
+        req_team = request.args.get('team_id') or data.get('team_id') or request.form.get('team_id')
+        if getattr(g, 'role', '') in ['teacher', 'admin']:
+            student_team_id = req_team
+            if not student_team_id:
+                return jsonify({"error": "team_id required"}), 400
         else:
             cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
             student = cur.fetchone()
-        if not student or not student[0]:
-            return jsonify({"error": "Student not assigned to a team"}), 403
+            if not student or not student[0]:
+                return jsonify({"error": "Student not assigned to a team"}), 403
+            student_team_id = student[0]
             
-        student_team_id = student[0]
-        
         db.execute("""
             INSERT INTO work_packages (id, organization_id, project_id, team_id, name, description, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -2333,23 +2334,19 @@ def create_project_activity(project_id):
     
     with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
-        # Verify student team
-        req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
-        if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
-            student = MockRow(req_team)
-        else:
-            cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
-            student = cur.fetchone()
-        if not student:
-            return jsonify({"error": "Student not found"}), 404
-            
         # Verify WP ownership
         cur.execute("SELECT team_id FROM work_packages WHERE id = ? AND project_id = ? AND organization_id = ?", (wp_id, project_id, g.org_id))
         wp = cur.fetchone()
         if not wp:
             return jsonify({"error": "Work package not found"}), 404
-        if wp[0] != student[0]:
-            return jsonify({"error": "Unauthorized to add activity to another team's work package"}), 403
+            
+        if getattr(g, 'role', '') not in ['teacher', 'admin']:
+            cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
+            student = cur.fetchone()
+            if not student:
+                return jsonify({"error": "Student not found"}), 404
+            if wp[0] != student[0]:
+                return jsonify({"error": "Unauthorized to add activity to another team's work package"}), 403
             
         db.execute("""
             INSERT INTO activities (id, organization_id, project_id, work_package_id, name, description, created_at)
@@ -2369,22 +2366,18 @@ def update_project_work_package(project_id, wp_id):
     data = request.get_json(silent=True) or {}
     with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
-        req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
-        if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
-            student = MockRow(req_team)
-        else:
-            cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
-            student = cur.fetchone()
-        if not student:
-            return jsonify({"error": "Student not found"}), 404
-            
         cur.execute("SELECT team_id FROM work_packages WHERE id = ? AND project_id = ? AND organization_id = ?", (wp_id, project_id, g.org_id))
         wp = cur.fetchone()
         if not wp:
             return jsonify({"error": "Work package not found"}), 404
             
-        if wp[0] != student[0]:
-            return jsonify({"error": "Unauthorized to edit work package belonging to another team"}), 403
+        if getattr(g, 'role', '') not in ['teacher', 'admin']:
+            cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
+            student = cur.fetchone()
+            if not student:
+                return jsonify({"error": "Student not found"}), 404
+            if wp[0] != student[0]:
+                return jsonify({"error": "Unauthorized to edit work package belonging to another team"}), 403
             
         db.execute(
             "UPDATE work_packages SET name = ?, description = ? WHERE id = ? AND project_id = ? AND organization_id = ?",
@@ -2399,15 +2392,6 @@ def update_project_activity(project_id, act_id):
     data = request.get_json(silent=True) or {}
     with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
-        req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
-        if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
-            student = MockRow(req_team)
-        else:
-            cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
-            student = cur.fetchone()
-        if not student:
-            return jsonify({"error": "Student not found"}), 404
-            
         cur.execute("""
             SELECT wp.team_id 
             FROM activities a 
@@ -2418,8 +2402,13 @@ def update_project_activity(project_id, act_id):
         if not act:
             return jsonify({"error": "Activity not found"}), 404
             
-        if act[0] != student[0]:
-            return jsonify({"error": "Unauthorized to edit activity belonging to another team"}), 403
+        if getattr(g, 'role', '') not in ['teacher', 'admin']:
+            cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
+            student = cur.fetchone()
+            if not student:
+                return jsonify({"error": "Student not found"}), 404
+            if act[0] != student[0]:
+                return jsonify({"error": "Unauthorized to edit activity belonging to another team"}), 403
             
         db.execute(
             "UPDATE activities SET name = ?, description = ? WHERE id = ? AND project_id = ? AND organization_id = ?",
@@ -2433,27 +2422,45 @@ def update_project_activity(project_id, act_id):
 def delete_project_work_package(project_id, wp_id):
     with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
-        req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
-        if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
-            student = MockRow(req_team)
-        else:
-            cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
-            student = cur.fetchone()
-        if not student:
-            return jsonify({"error": "Student not found"}), 404
-        
         cur.execute("SELECT team_id FROM work_packages WHERE id = ? AND project_id = ? AND organization_id = ?", (wp_id, project_id, g.org_id))
         wp = cur.fetchone()
         if not wp:
             return jsonify({"error": "Work package not found"}), 404
             
-        if wp[0] != student[0]:
-            return jsonify({"error": "Unauthorized to delete work package belonging to another team"}), 403
+        if getattr(g, 'role', '') not in ['teacher', 'admin']:
+            cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
+            student = cur.fetchone()
+            if not student:
+                return jsonify({"error": "Student not found"}), 404
+            if wp[0] != student[0]:
+                return jsonify({"error": "Unauthorized to delete work package belonging to another team"}), 403
 
-        # Get all activities for this wp
-            acts = db.execute("SELECT id FROM activities WHERE work_package_id = ? AND organization_id = ?", (wp_id, g.org_id)).fetchall()
-        for act in acts:
-            db.execute("DELETE FROM project_tasks WHERE activity_id = ? AND organization_id = ?", (act[0], g.org_id))
+        # 1. Get all activities for this wp
+        cur.execute("SELECT id FROM activities WHERE work_package_id = ? AND organization_id = ?", (wp_id, g.org_id))
+        acts = cur.fetchall()
+        act_ids = [act[0] for act in acts]
+
+        # 2. Get all tasks under these activities
+        task_ids = []
+        if act_ids:
+            a_placeholders = ','.join(['?'] * len(act_ids))
+            cur.execute(f"SELECT id FROM project_tasks WHERE activity_id IN ({a_placeholders}) AND organization_id = ?", (*act_ids, g.org_id))
+            task_ids = [row[0] for row in cur.fetchall()]
+
+        # 3. Clean up task dependencies, deliverables, and tasks
+        if task_ids:
+            t_placeholders = ','.join(['?'] * len(task_ids))
+            db.execute(f"DELETE FROM project_dependencies WHERE (from_task_id IN ({t_placeholders}) OR to_task_id IN ({t_placeholders})) AND organization_id = ?", (*task_ids, *task_ids, g.org_id))
+            db.execute(f"UPDATE project_deliverables SET task_id = NULL WHERE task_id IN ({t_placeholders}) AND organization_id = ?", (*task_ids, g.org_id))
+            db.execute(f"DELETE FROM project_tasks WHERE id IN ({t_placeholders}) AND organization_id = ?", (*task_ids, g.org_id))
+
+        # 4. Clean up any cross-team dependency requests referencing this wp or its activities
+        db.execute("DELETE FROM project_dependencies WHERE request_from_wp_id = ? AND organization_id = ?", (wp_id, g.org_id))
+        if act_ids:
+            a_placeholders = ','.join(['?'] * len(act_ids))
+            db.execute(f"DELETE FROM project_dependencies WHERE request_from_act_id IN ({a_placeholders}) AND organization_id = ?", (*act_ids, g.org_id))
+
+        # 5. Delete activities and work package
         db.execute("DELETE FROM activities WHERE work_package_id = ? AND organization_id = ?", (wp_id, g.org_id))
         db.execute("DELETE FROM work_packages WHERE id = ? AND project_id = ? AND organization_id = ?", (wp_id, project_id, g.org_id))
         db.commit()
@@ -2464,15 +2471,6 @@ def delete_project_work_package(project_id, wp_id):
 def delete_project_activity(project_id, act_id):
     with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
-        req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
-        if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
-            student = MockRow(req_team)
-        else:
-            cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
-            student = cur.fetchone()
-        if not student:
-            return jsonify({"error": "Student not found"}), 404
-            
         cur.execute("""
             SELECT wp.team_id 
             FROM activities a 
@@ -2483,10 +2481,30 @@ def delete_project_activity(project_id, act_id):
         if not act:
             return jsonify({"error": "Activity not found"}), 404
             
-        if act[0] != student[0]:
-            return jsonify({"error": "Unauthorized to delete activity belonging to another team"}), 403
+        if getattr(g, 'role', '') not in ['teacher', 'admin']:
+            cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
+            student = cur.fetchone()
+            if not student:
+                return jsonify({"error": "Student not found"}), 404
+            if act[0] != student[0]:
+                return jsonify({"error": "Unauthorized to delete activity belonging to another team"}), 403
 
-        db.execute("DELETE FROM project_tasks WHERE activity_id = ? AND organization_id = ?", (act_id, g.org_id))
+        # 1. Get all tasks under this activity
+        cur.execute("SELECT id FROM project_tasks WHERE activity_id = ? AND organization_id = ?", (act_id, g.org_id))
+        tasks = cur.fetchall()
+        task_ids = [t[0] for t in tasks]
+
+        # 2. Clean up task dependencies, deliverables, and tasks
+        if task_ids:
+            t_placeholders = ','.join(['?'] * len(task_ids))
+            db.execute(f"DELETE FROM project_dependencies WHERE (from_task_id IN ({t_placeholders}) OR to_task_id IN ({t_placeholders})) AND organization_id = ?", (*task_ids, *task_ids, g.org_id))
+            db.execute(f"UPDATE project_deliverables SET task_id = NULL WHERE task_id IN ({t_placeholders}) AND organization_id = ?", (*task_ids, g.org_id))
+            db.execute(f"DELETE FROM project_tasks WHERE id IN ({t_placeholders}) AND organization_id = ?", (*task_ids, g.org_id))
+
+        # 3. Clean up any cross-team dependency requests referencing this activity
+        db.execute("DELETE FROM project_dependencies WHERE request_from_act_id = ? AND organization_id = ?", (act_id, g.org_id))
+
+        # 4. Delete activity
         db.execute("DELETE FROM activities WHERE id = ? AND project_id = ? AND organization_id = ?", (act_id, project_id, g.org_id))
         db.commit()
     return jsonify({"success": True})
@@ -2528,21 +2546,22 @@ def create_project_task(project_id):
     
     with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
-        req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
-        if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
-            student = MockRow(req_team)
+        cur.execute("SELECT work_packages.team_id FROM activities JOIN work_packages ON activities.work_package_id = work_packages.id AND work_packages.organization_id = activities.organization_id WHERE activities.id = ? AND activities.project_id = ? AND activities.organization_id = ?", (act_id, project_id, g.org_id))
+        act = cur.fetchone()
+        if not act:
+            return jsonify({"error": "Activity not found"}), 404
+            
+        req_team = request.args.get('team_id') or data.get('team_id') or request.form.get('team_id')
+        if getattr(g, 'role', '') in ['teacher', 'admin']:
+            student_team_id = req_team or act[0]
         else:
             cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
             student = cur.fetchone()
-        if not student or not student[0]:
-            return jsonify({"error": "Student not assigned to a team"}), 403
-            
-        cur.execute("SELECT work_packages.team_id FROM activities JOIN work_packages ON activities.work_package_id = work_packages.id AND work_packages.organization_id = activities.organization_id WHERE activities.id = ? AND activities.project_id = ? AND activities.organization_id = ?", (act_id, project_id, g.org_id))
-        act = cur.fetchone()
-        if not act or act[0] != student[0]:
-            return jsonify({"error": "Unauthorized to add task to another team's activity"}), 403
-            
-        student_team_id = student[0]
+            if not student or not student[0]:
+                return jsonify({"error": "Student not assigned to a team"}), 403
+            if act[0] != student[0]:
+                return jsonify({"error": "Unauthorized to add task to another team's activity"}), 403
+            student_team_id = student[0]
         
         db.execute('''
             INSERT INTO project_tasks (id, organization_id, project_id, team_id, activity_id, name, description, owner_student_id, start_date, end_date, status, priority, created_at)
@@ -2573,22 +2592,18 @@ def update_project_task(project_id, task_id):
     
     with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
-        req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
-        if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
-            student = MockRow(req_team)
-        else:
-            cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
-            student = cur.fetchone()
-        if not student:
-            return jsonify({"error": "Student not found"}), 404
-            
         cur.execute("SELECT team_id FROM project_tasks WHERE id = ? AND project_id = ? AND organization_id = ?", (task_id, project_id, g.org_id))
         task = cur.fetchone()
         if not task:
             return jsonify({"error": "Task not found"}), 404
             
-        if task[0] != student[0]:
-            return jsonify({"error": "Unauthorized to edit task belonging to another team"}), 403
+        if getattr(g, 'role', '') not in ['teacher', 'admin']:
+            cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
+            student = cur.fetchone()
+            if not student:
+                return jsonify({"error": "Student not found"}), 404
+            if task[0] != student[0]:
+                return jsonify({"error": "Unauthorized to edit task belonging to another team"}), 403
 
         # Handle simple updates
         fields = []
@@ -2601,7 +2616,7 @@ def update_project_task(project_id, task_id):
         if fields:
             params.append(task_id)
             params.append(project_id)
-            params.extend([g.org_id])
+            params.append(g.org_id)
             db.execute(f"UPDATE project_tasks SET {', '.join(fields)} WHERE id = ? AND project_id = ? AND organization_id = ?", params)
             db.commit()
             
@@ -2612,26 +2627,18 @@ def update_project_task(project_id, task_id):
 def delete_project_task(project_id, task_id):
     with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
-        # Verify student team
-        req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
-        if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
-            student = MockRow(req_team)
-        else:
-            cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
-            student = cur.fetchone()
-        if not student:
-            return jsonify({"error": "Student not found"}), 404
-            
-        student_team_id = student[0]
-        
-        # Verify task belongs to student's team
         cur.execute("SELECT team_id FROM project_tasks WHERE id = ? AND project_id = ? AND organization_id = ?", (task_id, project_id, g.org_id))
         task = cur.fetchone()
         if not task:
             return jsonify({"error": "Task not found"}), 404
             
-        if task[0] != student_team_id:
-            return jsonify({"error": "Unauthorized to delete task belonging to another team"}), 403
+        if getattr(g, 'role', '') not in ['teacher', 'admin']:
+            cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
+            student = cur.fetchone()
+            if not student:
+                return jsonify({"error": "Student not found"}), 404
+            if task[0] != student[0]:
+                return jsonify({"error": "Unauthorized to delete task belonging to another team"}), 403
             
         # Delete dependencies
         db.execute("DELETE FROM project_dependencies WHERE (from_task_id = ? OR to_task_id = ?) AND organization_id = ?", (task_id, task_id, g.org_id))

@@ -1565,7 +1565,10 @@ filteredDeliverables() {
                                 method: 'DELETE',
                                 headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                             });
-                            if (!res.ok) throw new Error('Failed to delete work package');
+                            if (!res.ok) {
+                                const data = await res.json().catch(() => ({}));
+                                throw new Error(data.error || 'Failed to delete work package');
+                            }
                             await this.fetchProjectData();
                         } catch(err) {
                             alert(err.message);
@@ -1583,7 +1586,10 @@ filteredDeliverables() {
                                 method: 'DELETE',
                                 headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId}
                             });
-                            if (!res.ok) throw new Error('Failed to delete activity');
+                            if (!res.ok) {
+                                const data = await res.json().catch(() => ({}));
+                                throw new Error(data.error || 'Failed to delete activity');
+                            }
                             await this.fetchProjectData();
                         } catch(err) {
                             alert(err.message);
