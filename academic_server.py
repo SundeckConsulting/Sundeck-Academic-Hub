@@ -277,7 +277,7 @@ def _issue_session(payload, idle_seconds):
     session_id = str(uuid.uuid4())
     expires_at = now + SESSION_MAX_AGE_SECONDS
     payload.update({"sid": session_id, "iat": now, "exp": expires_at})
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.execute("""
             CREATE TABLE IF NOT EXISTS academic_sessions (
                 id TEXT PRIMARY KEY,
@@ -301,7 +301,7 @@ def _touch_session(payload):
     if not session_id:
         return False
     now = int(time.time())
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.execute("""
             CREATE TABLE IF NOT EXISTS academic_sessions (
                 id TEXT PRIMARY KEY,
@@ -679,7 +679,7 @@ def request_teacher_otp():
     if not email:
         return jsonify({"error": "Email is required"}), 400
         
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         cur.execute("SELECT * FROM professors WHERE email = ?", (email,))
@@ -709,7 +709,7 @@ def verify_teacher_otp():
     if not email or not otp:
         return jsonify({"error": "Email and OTP required"}), 400
         
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         cur.execute("BEGIN IMMEDIATE")
@@ -845,7 +845,7 @@ def manage_teachers():
         try:
             prof_id = str(uuid.uuid4())
             passcode = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
-            with sqlite3.connect('academic.db') as db:
+            with sqlite3.connect(DB_PATH) as db:
                 cur = db.cursor()
                 cur.execute("INSERT INTO professors (id, organization_id, name, email, passcode_hash) VALUES (?, ?, ?, ?, ?)", (prof_id, g.org_id, name, email, passcode))
                 db.commit()
@@ -853,7 +853,7 @@ def manage_teachers():
         except sqlite3.IntegrityError:
             return jsonify({"error": "Email already exists"}), 400
             
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         cur.execute("SELECT id, name, email FROM professors WHERE organization_id = ?", (g.org_id,))
@@ -885,7 +885,7 @@ def manage_teachers():
 def update_teacher_projects(teacher_id):
     data = request.get_json(silent=True) or {}
     project_ids = data.get("project_ids", [])
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         cur.execute("SELECT id FROM professors WHERE id = ? AND organization_id = ?", (teacher_id, g.org_id))
         if not cur.fetchone():
@@ -910,7 +910,7 @@ def update_teacher_projects(teacher_id):
 @app.route("/api/admin/teachers/<teacher_id>", methods=["PUT", "DELETE"])
 @require_admin_auth
 def update_or_delete_teacher(teacher_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         cur.execute("SELECT id FROM professors WHERE id = ? AND organization_id = ?", (teacher_id, g.org_id))
         if not cur.fetchone():
@@ -949,7 +949,7 @@ def manage_projects():
         if not name: return jsonify({"error": "Project name required"}), 400
         try:
             project_id = str(uuid.uuid4())
-            with sqlite3.connect('academic.db') as db:
+            with sqlite3.connect(DB_PATH) as db:
                 cur = db.cursor()
                 _ensure_project_resources_table(db)
                 cur.execute("INSERT INTO projects (id, organization_id, name, description) VALUES (?, ?, ?, ?)", (project_id, g.org_id, name, description))
@@ -969,7 +969,7 @@ def manage_projects():
             app.logger.exception("Unable to create project")
             return jsonify({"error": "Unable to create project"}), 500
             
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         cur.execute("SELECT * FROM projects WHERE organization_id = ?", (g.org_id,))
@@ -990,7 +990,7 @@ def manage_projects():
 @require_admin_auth
 def update_or_delete_project(project_id):
     file_paths = []
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         cur.execute("SELECT id FROM projects WHERE id = ? AND organization_id = ?", (project_id, g.org_id))
         if not cur.fetchone():
@@ -1032,7 +1032,7 @@ def manage_project_resources(project_id):
     if g.role != "admin":
         return jsonify({"error": "Tenant administrator access required"}), 403
 
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         cur.execute("SELECT id FROM projects WHERE id = ? AND organization_id = ?", (project_id, g.org_id))
@@ -1106,7 +1106,7 @@ def manage_project_resources(project_id):
 def delete_project_resource(project_id, resource_id):
     if g.role != "admin":
         return jsonify({"error": "Tenant administrator access required"}), 403
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         _ensure_project_resources_table(db)
         _ensure_project_management_tables(db)
@@ -1131,7 +1131,7 @@ def download_project_resource_admin(project_id, resource_id):
     return _send_project_resource(project_id, resource_id, g.org_id)
 
 def _send_project_resource(project_id, resource_id, org_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         _ensure_project_resources_table(db)
         _ensure_project_management_tables(db)
@@ -1152,7 +1152,7 @@ def _send_project_resource(project_id, resource_id, org_id):
 def manage_project_resource_folders(project_id):
     if g.role != "admin":
         return jsonify({"error": "Tenant administrator access required"}), 403
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         cur.execute("SELECT id FROM projects WHERE id = ? AND organization_id = ?", (project_id, g.org_id))
@@ -1204,7 +1204,7 @@ def rename_project_resource_folder(project_id, folder_id):
         return jsonify({"error": "Folder name is required"}), 400
     if len(new_name) > 80:
         return jsonify({"error": "Folder names must be 80 characters or fewer"}), 400
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         # Check if another folder exists with the same name
         cur.execute("SELECT 1 FROM project_resource_folders WHERE project_id = ? AND organization_id = ? AND name = ? COLLATE NOCASE AND id != ?", (project_id, g.org_id, new_name, folder_id))
@@ -1221,7 +1221,7 @@ def rename_project_resource_folder(project_id, folder_id):
 def delete_project_resource_folder(project_id, folder_id):
     if g.role != "admin":
         return jsonify({"error": "Tenant administrator access required"}), 403
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         cur.execute("SELECT file_path FROM project_resources WHERE folder_id = ? AND project_id = ? AND organization_id = ?", (folder_id, project_id, g.org_id))
         files = cur.fetchall()
@@ -1259,7 +1259,7 @@ def _resource_comments_response(db, project_id, resource_id, org_id):
 def admin_project_resource_comments(project_id, resource_id):
     if g.role != "admin":
         return jsonify({"error": "Tenant administrator access required"}), 403
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         _ensure_project_resources_table(db)
         _ensure_project_management_tables(db)
         if request.method == "GET":
@@ -1294,7 +1294,7 @@ def manage_teams():
         try:
             team_id = str(uuid.uuid4())
             passcode = str(secrets.randbelow(900000) + 100000)
-            with sqlite3.connect('academic.db') as db:
+            with sqlite3.connect(DB_PATH) as db:
                 cur = db.cursor()
                 cur.execute("SELECT id FROM projects WHERE id = ? AND organization_id = ?", (project_id, g.org_id))
                 if not cur.fetchone():
@@ -1306,7 +1306,7 @@ def manage_teams():
             return jsonify({"error": "Team already exists"}), 400
             
     project_id_filter = request.args.get('project_id')
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         if g.role == "teacher":
@@ -1349,7 +1349,7 @@ def admin_create_student():
         return jsonify({"error": "Missing fields"}), 400
     try:
         student_id = str(uuid.uuid4())
-        with sqlite3.connect('academic.db') as db:
+        with sqlite3.connect(DB_PATH) as db:
             cur = db.cursor()
             cur.execute("SELECT id FROM student_teams WHERE id = ? AND organization_id = ?", (team_id, g.org_id))
             if not cur.fetchone():
@@ -1380,7 +1380,7 @@ def update_team(team_id):
     name = (data.get("name") or "").strip()
     project_id = data.get("project_id")
     if not name: return jsonify({"error": "Name required"}), 400
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         if project_id:
             cur.execute("SELECT id FROM projects WHERE id = ? AND organization_id = ?", (project_id, g.org_id))
@@ -1398,7 +1398,7 @@ def update_team(team_id):
 @require_admin_auth
 def delete_team(team_id):
     file_paths = []
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         cur.execute("SELECT id FROM student_teams WHERE id = ? AND organization_id = ?", (team_id, g.org_id))
         if not cur.fetchone():
@@ -1412,7 +1412,7 @@ def delete_team(team_id):
 @require_admin_auth
 def get_students():
     team_id = request.args.get("team_id")
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         if team_id:
@@ -1424,7 +1424,7 @@ def get_students():
 @app.route("/api/admin/students/<student_id>", methods=["PUT", "DELETE"])
 @require_admin_auth
 def update_or_delete_student(student_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         cur.execute("SELECT id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
         if not cur.fetchone():
@@ -1448,7 +1448,7 @@ def update_or_delete_student(student_id):
 @app.route("/api/admin/students/files/<file_id>", methods=["DELETE"])
 @require_admin_auth
 def delete_team_file(file_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         cur.execute("""
             SELECT f.file_path
@@ -1472,7 +1472,7 @@ def get_team_files():
     if not team_id:
         return jsonify({"error": "team_id required"}), 400
         
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         cur.execute("""
@@ -1488,7 +1488,7 @@ def get_team_files():
 @app.route("/api/admin/students/files/<file_id>/download", methods=["GET"])
 @require_admin_auth
 def download_team_file(file_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         if g.role == "teacher":
@@ -1523,7 +1523,7 @@ def request_student_otp():
     if not email:
         return jsonify({"error": "Email is required"}), 400
         
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         cur.execute("SELECT * FROM students WHERE email = ?", (email,))
@@ -1555,7 +1555,7 @@ def verify_student_otp():
     if not email or not otp:
         return jsonify({"error": "Email and OTP required"}), 400
         
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         cur.execute("BEGIN IMMEDIATE")
@@ -1625,7 +1625,7 @@ def require_student_auth(f):
             g.role = payload.get("role")
             g.student_id = payload["sub"]
             if g.role == "student" and request.endpoint != "student_consent":
-                with sqlite3.connect('academic.db') as db:
+                with sqlite3.connect(DB_PATH) as db:
                     notice = _latest_student_consent(db, g.student_id, "privacy_notice_ack")
                 if not notice or not notice[0] or notice[1] != STUDENT_PRIVACY_NOTICE_VERSION:
                     return jsonify({"error": "Privacy notice acknowledgement required", "consent_required": True}), 403
@@ -1633,7 +1633,7 @@ def require_student_auth(f):
             if project_id and request.path.startswith("/api/projects/"):
                 data = request.get_json(silent=True)
                 requested_team_id = request.args.get("team_id") or (data.get("team_id") if isinstance(data, dict) else None) or request.form.get("team_id")
-                with sqlite3.connect("academic.db") as db:
+                with sqlite3.connect(DB_PATH) as db:
                     allowed, team_id = _resolve_project_access(db, project_id, requested_team_id)
                 if not allowed:
                     return jsonify({"error": "Project not found or access denied"}), 403
@@ -1648,7 +1648,7 @@ def require_student_auth(f):
 @app.route("/api/students/consent", methods=["GET", "POST"])
 @require_student_auth
 def student_consent():
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         _ensure_student_consent_table(db)
         if request.method == "GET":
             notice = _latest_student_consent(db, g.student_id, "privacy_notice_ack")
@@ -1692,7 +1692,7 @@ def tenant_student_consent_report():
         return jsonify({"error": "Tenant administrator access required"}), 403
 
     team_id = request.args.get("team_id")
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         _ensure_student_consent_table(db)
         cur = db.cursor()
@@ -1729,7 +1729,7 @@ def tenant_student_consent_report():
 @app.route("/api/students/files", methods=["GET"])
 @require_student_auth
 def list_student_files():
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         data = request.get_json(silent=True)
@@ -1753,7 +1753,7 @@ def list_student_files():
 def get_teacher_projects():
     if g.role != 'teacher':
         return jsonify({"error": "Unauthorized"}), 403
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         cur.execute("""
@@ -1773,7 +1773,7 @@ def get_teacher_projects():
 @app.route("/api/students/team", methods=["GET"])
 @require_student_auth
 def get_student_team():
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         cur.execute("""
@@ -1801,7 +1801,7 @@ def get_student_team():
 @app.route("/api/students/resources", methods=["GET"])
 @require_student_auth
 def list_student_project_resources():
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         _ensure_project_resources_table(db)
         _ensure_project_management_tables(db)
@@ -1820,7 +1820,7 @@ def list_student_project_resources():
 @app.route("/api/students/resource-folders", methods=["GET", "POST"])
 @require_student_auth
 def student_project_resource_folders():
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         _ensure_project_resources_table(db)
         _ensure_project_management_tables(db)
@@ -1840,7 +1840,7 @@ def student_project_resource_folders():
 @app.route("/api/students/resources/<resource_id>/comments", methods=["GET", "POST"])
 @require_student_auth
 def student_project_resource_comments(resource_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         _ensure_project_resources_table(db)
         _ensure_project_management_tables(db)
         project_id = _get_student_project_id(db, g.student_id, g.org_id)
@@ -1871,7 +1871,7 @@ def student_project_resource_comments(resource_id):
 @app.route("/api/students/resources/<resource_id>/download", methods=["GET"])
 @require_student_auth
 def download_student_project_resource(resource_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         _ensure_project_resources_table(db)
         _ensure_project_management_tables(db)
@@ -1911,7 +1911,7 @@ def upload_student_file():
     file_id = str(uuid.uuid4())
     folder_id = (folder_id or "").strip() or None
 
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         cur.execute("SELECT team_id, email, organization_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
         student_info = cur.fetchone()
@@ -1937,7 +1937,7 @@ def upload_student_file():
 @app.route("/api/students/file-folders", methods=["GET", "POST"])
 @require_student_auth
 def student_file_folders():
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         data = request.get_json(silent=True)
@@ -1977,7 +1977,7 @@ def student_file_folders():
 @require_student_auth
 def get_student_profile():
     student_id = g.student_id
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         cur.execute("""
@@ -2010,7 +2010,7 @@ def project_teachers(project_id):
         data = request.get_json(silent=True)
         teacher_id = data.get("teacher_id")
         if not teacher_id: return jsonify({"error": "teacher_id required"}), 400
-        with sqlite3.connect('academic.db') as db:
+        with sqlite3.connect(DB_PATH) as db:
             cur = db.cursor()
             cur.execute("SELECT id FROM projects WHERE id = ? AND organization_id = ?", (project_id, g.org_id))
             if not cur.fetchone():
@@ -2025,7 +2025,7 @@ def project_teachers(project_id):
             except sqlite3.IntegrityError:
                 return jsonify({"error": "Teacher already assigned or invalid IDs"}), 400
                 
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         cur.execute("""
@@ -2040,7 +2040,7 @@ def project_teachers(project_id):
 @app.route("/api/admin/projects/<project_id>/teachers/<teacher_id>", methods=["DELETE"])
 @require_admin_auth
 def remove_project_teacher(project_id, teacher_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         cur.execute("""
             DELETE FROM project_professors
@@ -2056,7 +2056,7 @@ def remove_project_teacher(project_id, teacher_id):
 def get_organizations():
     if g.role != "sundeck_admin":
         return jsonify({"error": "Forbidden. Requires Superadmin."}), 403
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         cols = [row[1] for row in cur.execute("PRAGMA table_info(organizations)").fetchall()]
@@ -2092,7 +2092,7 @@ def create_organization():
     city = data.get("city", "")
     logo_url = data.get("logo_url") or ""
 
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         cols = [row[1] for row in cur.execute("PRAGMA table_info(organizations)").fetchall()]
         field_values = [("id", org_id), ("name", name)]
@@ -2122,7 +2122,7 @@ def delete_organization(org_id):
     if g.role != "sundeck_admin":
         return jsonify({"error": "Forbidden. Requires Superadmin."}), 403
         
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         cur.execute("DELETE FROM organizations WHERE id = ?", (org_id,))
         db.commit()
@@ -2171,7 +2171,7 @@ def revoke_session():
         return jsonify({"success": True})
     session_id = payload.get("sid")
     if session_id:
-        with sqlite3.connect('academic.db') as db:
+        with sqlite3.connect(DB_PATH) as db:
             db.execute("DELETE FROM academic_sessions WHERE id = ?", (session_id,))
     return jsonify({"success": True})
 
@@ -2179,7 +2179,7 @@ def revoke_session():
 @app.route("/api/students/files/<file_id>", methods=["PUT", "DELETE"])
 @require_student_auth
 def manage_student_file(file_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         data = request.get_json(silent=True)
@@ -2219,7 +2219,7 @@ def manage_student_file(file_id):
 @app.route("/api/students/file-folders/<folder_id>", methods=["PUT", "DELETE"])
 @require_student_auth
 def manage_student_file_folder(folder_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         data = request.get_json(silent=True)
         req_team = request.args.get('team_id') or (data.get('team_id') if isinstance(data, dict) else None) or request.form.get('team_id')
@@ -2254,7 +2254,7 @@ def manage_student_file_folder(folder_id):
 @require_student_auth
 def get_project_work_packages(project_id):
     team_id = request.args.get("team_id")
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         query = "SELECT * FROM work_packages WHERE project_id = ? AND organization_id = ?"
         params = [project_id, g.org_id]
@@ -2270,7 +2270,7 @@ def get_project_work_packages(project_id):
 def create_project_work_package(project_id):
     data = request.get_json(silent=True) or {}
     wp_id = str(uuid.uuid4())
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
         if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
@@ -2295,7 +2295,7 @@ def create_project_work_package(project_id):
 @app.route("/api/projects/<project_id>/activities", methods=["GET"])
 @require_student_auth
 def get_project_activities(project_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         query = """
             SELECT a.* FROM activities a
@@ -2316,7 +2316,7 @@ def create_project_activity(project_id):
     act_id = str(uuid.uuid4())
     wp_id = data.get("work_package_id")
     
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         # Verify student team
         req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
@@ -2352,7 +2352,7 @@ def create_project_activity(project_id):
 @require_student_auth
 def update_project_work_package(project_id, wp_id):
     data = request.get_json(silent=True) or {}
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
         if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
@@ -2382,7 +2382,7 @@ def update_project_work_package(project_id, wp_id):
 @require_student_auth
 def update_project_activity(project_id, act_id):
     data = request.get_json(silent=True) or {}
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
         if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
@@ -2416,7 +2416,7 @@ def update_project_activity(project_id, act_id):
 @app.route("/api/projects/<project_id>/work_packages/<wp_id>", methods=["DELETE"])
 @require_student_auth
 def delete_project_work_package(project_id, wp_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
         if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
@@ -2447,7 +2447,7 @@ def delete_project_work_package(project_id, wp_id):
 @app.route("/api/projects/<project_id>/activities/<act_id>", methods=["DELETE"])
 @require_student_auth
 def delete_project_activity(project_id, act_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
         if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
@@ -2480,7 +2480,7 @@ def delete_project_activity(project_id, act_id):
 @require_student_auth
 def get_project_tasks(project_id):
     team_id = request.args.get("team_id")
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         
         query = "SELECT * FROM project_tasks WHERE project_id = ? AND organization_id = ?"
@@ -2496,7 +2496,7 @@ def get_project_tasks(project_id):
 @app.route("/api/projects/<project_id>/teams", methods=["GET"])
 @require_student_auth
 def get_project_teams_student(project_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         query = "SELECT id, name, project_id FROM student_teams WHERE project_id = ? AND organization_id = ?"
         params = [project_id, g.org_id]
@@ -2514,7 +2514,7 @@ def create_project_task(project_id):
     task_id = str(uuid.uuid4())
     act_id = data.get("activity_id")
     
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
         if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
@@ -2559,7 +2559,7 @@ def create_project_task(project_id):
 def update_project_task(project_id, task_id):
     data = request.get_json(silent=True) or {}
     
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
         if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
@@ -2598,7 +2598,7 @@ def update_project_task(project_id, task_id):
 @app.route("/api/projects/<project_id>/tasks/<task_id>", methods=["DELETE"])
 @require_student_auth
 def delete_project_task(project_id, task_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         # Verify student team
         req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
@@ -2636,7 +2636,7 @@ def delete_project_task(project_id, task_id):
 @app.route("/api/projects/<project_id>/dependencies", methods=["GET"])
 @require_student_auth
 def get_project_dependencies(project_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         deps = [dict(row) for row in db.execute("SELECT * FROM project_dependencies WHERE project_id = ? AND organization_id = ?", (project_id, g.org_id)).fetchall()]
         return jsonify({"dependencies": deps})
@@ -2650,7 +2650,7 @@ def create_project_dependency(project_id):
     what_needed = data.get("request_what_needed", "")
     if not isinstance(reason, str) or len(reason) > 3000 or not isinstance(what_needed, str) or len(what_needed) > 3000:
         return jsonify({"error": "Dependency details are invalid"}), 400
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
         if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
@@ -2725,7 +2725,7 @@ def map_project_dependency(project_id, dep_id):
     if not new_from_task_id:
         return jsonify({"error": "from_task_id is required"}), 400
         
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
         # Verify the user is in the team that received the request
         req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
@@ -2754,7 +2754,7 @@ def map_project_dependency(project_id, dep_id):
 @app.route("/api/projects/<project_id>/deliverables", methods=["GET"])
 @require_student_auth
 def get_project_deliverables(project_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         query = "SELECT * FROM project_deliverables WHERE project_id = ? AND organization_id = ?"
         params = [project_id, g.org_id]
@@ -2771,7 +2771,7 @@ def get_project_deliverables(project_id):
 @require_admin_auth
 def admin_get_project_tasks(project_id):
     team_id = request.args.get("team_id")
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         
         query = "SELECT * FROM project_tasks WHERE project_id = ? AND organization_id = ?"
@@ -2786,7 +2786,7 @@ def admin_get_project_tasks(project_id):
 @app.route("/api/admin/projects/<project_id>/dependencies", methods=["GET"])
 @require_admin_auth
 def admin_get_project_dependencies(project_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         deps = [dict(row) for row in db.execute("SELECT * FROM project_dependencies WHERE project_id = ? AND organization_id = ?", (project_id, g.org_id)).fetchall()]
         return jsonify({"dependencies": deps})
@@ -2794,7 +2794,7 @@ def admin_get_project_dependencies(project_id):
 @app.route("/api/admin/projects/<project_id>/deliverables", methods=["GET"])
 @require_admin_auth
 def admin_get_project_deliverables(project_id):
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         query = "SELECT * FROM project_deliverables WHERE project_id = ? AND organization_id = ?"
         params = [project_id, g.org_id]
@@ -2812,7 +2812,7 @@ def stream_events():
     student_id = g.student_id
     org_id = g.org_id
     client_id = request.args.get('client_id')
-    with sqlite3.connect('academic.db') as db:
+    with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         cur = db.cursor()
         
