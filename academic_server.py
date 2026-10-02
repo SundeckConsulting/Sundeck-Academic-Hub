@@ -889,6 +889,7 @@ def manage_projects():
             project_id = str(uuid.uuid4())
             with sqlite3.connect('academic.db') as db:
                 cur = db.cursor()
+                _ensure_project_resources_table(db)
                 cur.execute("INSERT INTO projects (id, organization_id, name, description) VALUES (?, ?, ?, ?)", (project_id, g.org_id, name, description))
                 
                 # Auto-create default folders for resources
