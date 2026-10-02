@@ -622,11 +622,11 @@
                                     <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider line-clamp-1" x-text="dep.fromTeam ? dep.fromTeam.name : 'Unknown Team'"></div>
                                     <div class="font-bold text-slate-900 text-sm line-clamp-2 leading-tight" x-text="dep.fromTask ? dep.fromTask.name : dep.dependency.request_what_needed"></div>
                                     <div class="mt-1 flex items-center">
-                                        <span x-show="dep.fromTask" class="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold border border-slate-200 text-slate-700">
-                                            <span class="w-2 h-2 rounded-full" :class="{'bg-emerald-500': ['Completed', 'Approved'].includes(dep.fromTask?.status), 'bg-blue-500': dep.fromTask?.status === 'In Progress', 'bg-red-500': dep.fromTask?.status === 'Blocked', 'bg-yellow-500': ['Under Review', 'Submitted', 'Revision Required'].includes(dep.fromTask?.status), 'bg-slate-300': !dep.fromTask?.status || dep.fromTask?.status === 'Not Started'}"></span>
-                                            <span x-text="dep.fromTask.status"></span>
+                                        <span x-show="dep.fromTask || dep.dependency.status === 'Mapped'" class="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold border border-slate-200 text-slate-700">
+                                            <span class="w-2 h-2 rounded-full" :class="{'bg-emerald-500': ['Completed', 'Approved'].includes(dep.fromTask?.status), 'bg-blue-500': dep.fromTask?.status === 'In Progress', 'bg-red-500': dep.fromTask?.status === 'Blocked', 'bg-yellow-500': ['Under Review', 'Submitted', 'Revision Required'].includes(dep.fromTask?.status), 'bg-slate-300': !dep.fromTask?.status || dep.fromTask?.status === 'Not Started' || dep.fromTask?.status === 'Mapped'}"></span>
+                                            <span x-text="dep.fromTask ? dep.fromTask.status : 'Mapped'"></span>
                                         </span>
-                                        <span x-show="!dep.fromTask" class="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold border border-slate-200 text-slate-500">
+                                        <span x-show="!dep.fromTask && dep.dependency.status !== 'Mapped'" class="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold border border-slate-200 text-slate-500">
                                             <span class="w-2 h-2 rounded-full bg-slate-300 border border-slate-400"></span>
                                             <span>Pending</span>
                                         </span>
@@ -1544,8 +1544,8 @@ activeDropdown: null,
                         .filter(d => d.from_task_id === taskId)
                         .map(d => {
                             const toTask = this.projectTasks.find(t => t.id === d.to_task_id);
-                            const toTeam = toTask ? this.allTeams.find(tm => tm.id === toTask.team_id) : null;
-                            return { dependency: d, task: toTask, team: toTeam };
+                            const toTeam = toTask ? this.allTeams.find(tm => tm.id === toTask.team_id) : (d.to_team_name ? { id: d.to_task_team_id, name: d.to_team_name } : (d.to_task_id && d.to_task_id.startsWith('TEAM_') ? this.allTeams.find(tm => tm.id === d.to_task_id.substring(5)) : null));
+                            return { dependency: d, task: toTask || { id: d.to_task_id, name: d.to_task_name || d.request_what_needed }, team: toTeam };
                         }).filter(x => x.task);
                 },
                 getIncomingDependencies() {
@@ -1554,10 +1554,24 @@ activeDropdown: null,
                     return this.projectDependencies
                         .filter(d => myTaskIds.includes(d.to_task_id) || d.to_task_id === 'TEAM_' + this.team.id)
                         .map(d => {
-                            const fromTask = d.status === 'Mapped' ? this.projectTasks.find(t => t.id === d.from_task_id) : null;
-                            const fromTeam = this.allTeams.find(tm => tm.id === (d.status === 'Mapped' && fromTask ? fromTask.team_id : d.request_from_team_id));
+                            let fromTask = d.status === 'Mapped' ? this.projectTasks.find(t => t.id === d.from_task_id) : null;
+                            if (!fromTask && d.status === 'Mapped') {
+                                fromTask = {
+                                    id: d.from_task_id,
+                                    name: d.from_task_name || d.request_what_needed || 'Mapped Task',
+                                    status: d.from_task_status || 'In Progress',
+                                    start_date: d.from_task_start_date,
+                                    end_date: d.from_task_end_date || d.expected_date,
+                                    priority: d.from_task_priority || 'Medium',
+                                    team_id: d.from_task_team_id || d.request_from_team_id
+                                };
+                            }
+                            const fromTeam = this.allTeams.find(tm => tm.id === (fromTask ? fromTask.team_id : d.request_from_team_id)) || (d.from_team_name ? { id: d.from_task_team_id || d.request_from_team_id, name: d.from_team_name } : null);
                             const act = d.status === 'Pending' ? this.activities.find(a => a.id === d.request_from_act_id) : null;
-                            const toTask = this.projectTasks.find(t => t.id === d.to_task_id);
+                            let toTask = this.projectTasks.find(t => t.id === d.to_task_id);
+                            if (!toTask && d.to_task_name) {
+                                toTask = { id: d.to_task_id, name: d.to_task_name, status: d.to_task_status, team_id: d.to_task_team_id };
+                            }
                             return { dependency: d, fromTask, fromTeam, toTask, act };
                         });
                 },
@@ -1569,7 +1583,7 @@ activeDropdown: null,
                         const wp = this.workPackages.find(w => w.id === d.request_from_wp_id);
                         const act = this.activities.find(a => a.id === d.request_from_act_id);
                         const requestingTask = this.projectTasks.find(t => t.id === d.to_task_id);
-                        const requestingTeam = requestingTask ? this.allTeams.find(tm => tm.id === requestingTask.team_id) : null;
+                        const requestingTeam = requestingTask ? this.allTeams.find(tm => tm.id === requestingTask.team_id) : (d.to_team_name ? { id: d.to_task_team_id, name: d.to_team_name } : (d.to_task_id && d.to_task_id.startsWith('TEAM_') ? this.allTeams.find(tm => tm.id === d.to_task_id.substring(5)) : null));
                         return { dependency: d, requestingTask, requestingTeam, wp, act };
                     });
                 },
@@ -2109,16 +2123,16 @@ async fetchProjectData(team = this.team) {
                     return this.projectDependencies
                         .filter(d => {
                             const fromTask = this.projectTasks.find(t => t.id === d.from_task_id);
-                            return fromTask && fromTask.team_id === this.team.id;
+                            return (fromTask && fromTask.team_id === this.team.id) || (d.status === 'Mapped' && (d.from_task_team_id === this.team.id || d.request_from_team_id === this.team.id));
                         })
                         .map(d => {
                             const fromTask = this.projectTasks.find(t => t.id === d.from_task_id);
                             const toTask = this.projectTasks.find(t => t.id === d.to_task_id);
                             return {
                                 ...d,
-                                from_task_name: fromTask ? fromTask.name : 'Unknown Task',
-                                to_task_name: toTask ? toTask.name : 'Unknown Task',
-                                to_team_name: toTask ? this.getTeamName(toTask.team_id) : 'Unknown Team'
+                                from_task_name: fromTask ? fromTask.name : (d.from_task_name || 'Mapped Task'),
+                                to_task_name: toTask ? toTask.name : (d.to_task_name || d.request_what_needed || 'External Task'),
+                                to_team_name: toTask ? this.getTeamName(toTask.team_id) : (d.to_team_name || 'Requesting Team')
                             };
                         });
                 },
@@ -2587,17 +2601,17 @@ async fetchProjectData(team = this.team) {
 
                         <!-- Target Task Section -->
                         <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2" x-text="selectedViewDependency.fromTask ? 'Required Output' : 'Requested Output'"></div>
+                            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2" x-text="selectedViewDependency.fromTask || selectedViewDependency.dependency?.status === 'Mapped' ? 'Required Output' : 'Requested Output'"></div>
                             <div class="text-base font-semibold text-slate-800 mb-4" x-text="selectedViewDependency.fromTask ? selectedViewDependency.fromTask.name : selectedViewDependency.dependency.request_what_needed"></div>
                             
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Status</div>
-                                    <span x-show="selectedViewDependency.fromTask" class="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-700 border border-slate-200 shadow-sm">
-                                        <span class="w-2 h-2 rounded-full" :class="{'bg-emerald-500': ['Completed', 'Approved'].includes(selectedViewDependency.fromTask?.status), 'bg-blue-500': selectedViewDependency.fromTask?.status === 'In Progress', 'bg-red-500': selectedViewDependency.fromTask?.status === 'Blocked', 'bg-yellow-500': ['Under Review', 'Submitted', 'Revision Required'].includes(selectedViewDependency.fromTask?.status), 'bg-slate-300': !selectedViewDependency.fromTask?.status || selectedViewDependency.fromTask?.status === 'Not Started'}"></span>
-                                        <span x-text="selectedViewDependency.fromTask.status"></span>
+                                    <span x-show="selectedViewDependency.fromTask || selectedViewDependency.dependency?.status === 'Mapped'" class="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-700 border border-slate-200 shadow-sm">
+                                        <span class="w-2 h-2 rounded-full" :class="{'bg-emerald-500': ['Completed', 'Approved'].includes(selectedViewDependency.fromTask?.status), 'bg-blue-500': selectedViewDependency.fromTask?.status === 'In Progress', 'bg-red-500': selectedViewDependency.fromTask?.status === 'Blocked', 'bg-yellow-500': ['Under Review', 'Submitted', 'Revision Required'].includes(selectedViewDependency.fromTask?.status), 'bg-slate-300': !selectedViewDependency.fromTask?.status || selectedViewDependency.fromTask?.status === 'Not Started' || selectedViewDependency.fromTask?.status === 'Mapped'}"></span>
+                                        <span x-text="selectedViewDependency.fromTask ? selectedViewDependency.fromTask.status : 'Mapped'"></span>
                                     </span>
-                                    <span x-show="!selectedViewDependency.fromTask" class="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-500 border border-slate-200 shadow-sm">
+                                    <span x-show="!selectedViewDependency.fromTask && selectedViewDependency.dependency?.status !== 'Mapped'" class="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-500 border border-slate-200 shadow-sm">
                                         <span class="w-2 h-2 rounded-full bg-slate-300 border border-slate-400"></span>
                                         <span>Pending (Not Mapped)</span>
                                     </span>

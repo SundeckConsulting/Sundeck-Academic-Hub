@@ -2657,7 +2657,41 @@ def delete_project_task(project_id, task_id):
 def get_project_dependencies(project_id):
     with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
-        deps = [dict(row) for row in db.execute("SELECT * FROM project_dependencies WHERE project_id = ? AND organization_id = ?", (project_id, g.org_id)).fetchall()]
+        query = """
+            SELECT 
+                d.*,
+                t_from.name AS from_task_name,
+                t_from.status AS from_task_status,
+                t_from.start_date AS from_task_start_date,
+                t_from.end_date AS from_task_end_date,
+                t_from.priority AS from_task_priority,
+                t_from.team_id AS from_task_team_id,
+                team_from.name AS from_team_name,
+                t_to.name AS to_task_name,
+                t_to.status AS to_task_status,
+                t_to.team_id AS to_task_team_id,
+                team_to.name AS to_team_name
+            FROM project_dependencies d
+            LEFT JOIN project_tasks t_from 
+                ON t_from.id = d.from_task_id 
+                AND t_from.project_id = d.project_id 
+                AND t_from.organization_id = d.organization_id
+            LEFT JOIN student_teams team_from
+                ON team_from.id = COALESCE(t_from.team_id, d.request_from_team_id)
+                AND team_from.organization_id = d.organization_id
+            LEFT JOIN project_tasks t_to 
+                ON t_to.id = d.to_task_id 
+                AND t_to.project_id = d.project_id 
+                AND t_to.organization_id = d.organization_id
+            LEFT JOIN student_teams team_to
+                ON team_to.id = COALESCE(
+                    t_to.team_id, 
+                    CASE WHEN d.to_task_id LIKE 'TEAM_%' THEN SUBSTR(d.to_task_id, 6) ELSE NULL END
+                )
+                AND team_to.organization_id = d.organization_id
+            WHERE d.project_id = ? AND d.organization_id = ?
+        """
+        deps = [dict(row) for row in db.execute(query, (project_id, g.org_id)).fetchall()]
         return jsonify({"dependencies": deps})
 
 @app.route("/api/projects/<project_id>/dependencies", methods=["POST"])
@@ -2747,28 +2781,25 @@ def map_project_dependency(project_id, dep_id):
         
     with sqlite3.connect(DB_PATH) as db:
         cur = db.cursor()
-        # Verify the user is in the team that received the request
-        req_team = request.args.get('team_id') or (request.get_json(silent=True) or {}).get('team_id') or request.form.get('team_id')
-        if getattr(g, 'role', '') in ['teacher', 'admin'] and req_team:
-            student = MockRow(req_team)
-        else:
-            cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
-            student = cur.fetchone()
-        
         cur.execute("SELECT request_from_team_id, status FROM project_dependencies WHERE id = ? AND project_id = ? AND organization_id = ?", (dep_id, project_id, g.org_id))
         dep = cur.fetchone()
         if not dep:
             return jsonify({"error": "Dependency request not found"}), 404
             
-        if dep[0] != student[0]:
-            return jsonify({"error": "Unauthorized to map this request"}), 403
+        if getattr(g, 'role', '') not in ['teacher', 'admin']:
+            cur.execute("SELECT team_id FROM students WHERE id = ? AND organization_id = ?", (g.student_id, g.org_id))
+            student = cur.fetchone()
+            if not student:
+                return jsonify({"error": "Student not found"}), 404
+            if dep[0] != student[0]:
+                return jsonify({"error": "Unauthorized to map this request"}), 403
 
         if not cur.execute("SELECT 1 FROM project_tasks WHERE id = ? AND project_id = ? AND organization_id = ? AND team_id = ?", (new_from_task_id, project_id, g.org_id, dep[0])).fetchone():
             return jsonify({"error": "Task is outside the requesting team"}), 403
             
         cur.execute("UPDATE project_dependencies SET from_task_id = ?, status = 'Mapped' WHERE id = ? AND project_id = ? AND organization_id = ?", (new_from_task_id, dep_id, project_id, g.org_id))
         db.commit()
-    return jsonify({"success": True})
+    return jsonify({"success": True, "status": "Mapped"})
 
 
 @app.route("/api/projects/<project_id>/deliverables", methods=["GET"])
@@ -2808,7 +2839,41 @@ def admin_get_project_tasks(project_id):
 def admin_get_project_dependencies(project_id):
     with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
-        deps = [dict(row) for row in db.execute("SELECT * FROM project_dependencies WHERE project_id = ? AND organization_id = ?", (project_id, g.org_id)).fetchall()]
+        query = """
+            SELECT 
+                d.*,
+                t_from.name AS from_task_name,
+                t_from.status AS from_task_status,
+                t_from.start_date AS from_task_start_date,
+                t_from.end_date AS from_task_end_date,
+                t_from.priority AS from_task_priority,
+                t_from.team_id AS from_task_team_id,
+                team_from.name AS from_team_name,
+                t_to.name AS to_task_name,
+                t_to.status AS to_task_status,
+                t_to.team_id AS to_task_team_id,
+                team_to.name AS to_team_name
+            FROM project_dependencies d
+            LEFT JOIN project_tasks t_from 
+                ON t_from.id = d.from_task_id 
+                AND t_from.project_id = d.project_id 
+                AND t_from.organization_id = d.organization_id
+            LEFT JOIN student_teams team_from
+                ON team_from.id = COALESCE(t_from.team_id, d.request_from_team_id)
+                AND team_from.organization_id = d.organization_id
+            LEFT JOIN project_tasks t_to 
+                ON t_to.id = d.to_task_id 
+                AND t_to.project_id = d.project_id 
+                AND t_to.organization_id = d.organization_id
+            LEFT JOIN student_teams team_to
+                ON team_to.id = COALESCE(
+                    t_to.team_id, 
+                    CASE WHEN d.to_task_id LIKE 'TEAM_%' THEN SUBSTR(d.to_task_id, 6) ELSE NULL END
+                )
+                AND team_to.organization_id = d.organization_id
+            WHERE d.project_id = ? AND d.organization_id = ?
+        """
+        deps = [dict(row) for row in db.execute(query, (project_id, g.org_id)).fetchall()]
         return jsonify({"dependencies": deps})
 
 @app.route("/api/admin/projects/<project_id>/deliverables", methods=["GET"])
