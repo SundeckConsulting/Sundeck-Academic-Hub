@@ -2438,21 +2438,27 @@ async fetchProjectData(team = this.team) {
                     let successCount = 0;
                     try {
                         for (const file of files) {
+                            if (file.size > 250 * 1024 * 1024) {
+                                this.uploadError = `File "${file.name}" exceeds the maximum allowed size (250 MB).`;
+                                return;
+                            }
                             const formData = new FormData();
                             formData.append('file', file);
                             if (this.selectedDeliverableFolderId) {
                                 formData.append('folder_id', this.selectedDeliverableFolderId);
-                        formData.append('team_id', this.team.id);
                             }
+                            formData.append('team_id', this.team.id);
                             const response = await fetch(`/api/students/files?team_id=${this.team.id}`, {
                                 method: 'POST',
                                 headers: {'Authorization': 'Bearer ' + this.token, 'X-Client-ID': this.clientId},
                                 body: formData
                             });
-                            const data = await response.json();
                             if (response.status === 401) { this.logout(true); return; }
-                            if (!response.ok || data.error) {
-                                this.uploadError = data.error || 'Failed to upload ' + file.name;
+                            let data = null;
+                            try { data = await response.json(); } catch (e) {}
+                            if (!response.ok || (data && data.error)) {
+                                if (response.status === 413) this.uploadError = `File "${file.name}" exceeds the 250 MB limit.`;
+                                else this.uploadError = (data && data.error) || `Failed to upload ${file.name} (Status ${response.status})`;
                                 return;
                             }
                             successCount++;

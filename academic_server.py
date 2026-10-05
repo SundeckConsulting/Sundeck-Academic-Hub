@@ -133,7 +133,7 @@ def _check_rate_limit(key, max_attempts=5, window_seconds=600):
         return True
 
 app = Flask(__name__, static_folder="frontend", static_url_path="")
-app.config["MAX_CONTENT_LENGTH"] = 260 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 300 * 1024 * 1024
 
 
 def _ensure_core_tables():
@@ -1143,11 +1143,12 @@ def manage_project_resources(project_id):
         if not resource or not resource.filename:
             return jsonify({"error": "Select a file to upload"}), 400
         try:
-            file_name, file_type = validate_upload_candidate(resource.filename, resource.mimetype, len(resource.read()))
+            resource.stream.seek(0, 2)
+            stream_size = resource.stream.tell()
+            resource.stream.seek(0)
+            file_name, file_type = validate_upload_candidate(resource.filename, resource.mimetype, stream_size)
         except StorageValidationError as exc:
             return jsonify({"error": str(exc)}), 400
-        finally:
-            resource.stream.seek(0)
         folder_id = (request.form.get("folder_id") or "").strip() or None
         if folder_id:
             cur.execute("""
@@ -2057,11 +2058,12 @@ def upload_student_file():
         return jsonify({"error": "No selected file"}), 400
 
     try:
-        safe_filename, file_type = validate_upload_candidate(uploaded_filename, file.mimetype, len(file.read()))
+        file.stream.seek(0, 2)
+        stream_size = file.stream.tell()
+        file.stream.seek(0)
+        safe_filename, file_type = validate_upload_candidate(uploaded_filename, file.mimetype, stream_size)
     except StorageValidationError as exc:
         return jsonify({"error": str(exc)}), 400
-    finally:
-        file.stream.seek(0)
     file_id = str(uuid.uuid4())
     folder_id = (folder_id or "").strip() or None
 
